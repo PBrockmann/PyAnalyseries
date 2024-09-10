@@ -1,11 +1,17 @@
 #=========================================================================================
-# Author: Patrick Brockmann CEA/DRF/LSCE - September 2024
-#=========================================================================================
+import pandas as pd
 
+df = pd.read_csv('testFile.csv')
+
+x1 = df['Time (ka)'].to_numpy()
+y1 = df['Stack Benthic d18O (per mil)'].to_numpy()
+x2 = df['depthODP849cm'].to_numpy()
+y2 = df['d18Oforams-b'].to_numpy()
+
+#=========================================================================================
 import sys
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 from matplotlib.patches import ConnectionPatch
 from matplotlib.lines import Line2D
 import matplotlib.patches as patches
@@ -15,59 +21,6 @@ import matplotlib as mpl
 mpl.rcParams['toolbar'] = 'None'
 plt.rc('xtick',labelsize=8)
 plt.rc('ytick',labelsize=8)
-
-#=========================================================================================
-# python lineage.py testFile.csv 'Time (ka)' 'Stack Benthic d18O (per mil)' 'depthODP849cm' 'd18Oforams-b' pointers1.csv
-
-fileData = sys.argv[1]
-x1Name = sys.argv[2]
-y1Name = sys.argv[3]
-x2Name = sys.argv[4]
-y2Name = sys.argv[5]
-filePointers = sys.argv[6]
-
-#=========================================================================================
-def readData(file, x1Name, y1Name, x2Name, y2Name):
-    global x1, y1, x2, y2
-
-    try:
-        df = pd.read_csv(file)
-        print(df.columns)
-
-        x1 = df[x1Name].to_numpy()
-        y1 = df[y1Name].to_numpy()
-        x2 = df[x2Name].to_numpy()
-        y2 = df[y2Name].to_numpy()
-
-    except:
-        print("Error: reading data file")
-
-#=========================================================================================
-def readPointers(file):
-    global artistsList_Dict, vline1List, vline2List
-
-    try:
-        df = pd.read_csv(file, names=['coordsX1','coordsX2'])
-        print(df.to_string(index=False, header=False, float_format="%.4f"))
-        for index, row in df.iterrows():
-            coordX1 = row['coordsX1']
-            coordX2 = row['coordsX2']
-            vline1 = axs[0].axvline(coordX1, color='b', linestyle='--', linewidth=1, label='vline')
-            vline2 = axs[1].axvline(coordX2, color='b', linestyle='--', linewidth=1, label='vline')
-            vline1List.append(vline1)
-            vline2List.append(vline2)
-            connect = ConnectionPatch(color='b', picker=5, clip_on=True, label='connection',
-                        xyA=(coordX1, axs[0].get_ylim()[0]), coordsA=axs[0].transData,
-                        xyB=(coordX2, axs[1].get_ylim()[1]), coordsB=axs[1].transData)
-            fig.add_artist(connect)
-            artistsList_Dict[id(connect)] = [connect, vline1, vline2]
-
-        axs[0].autoscale()
-        axs[1].autoscale()
-        updateConnect()
-
-    except:
-        print("Error: reading pointers file")
 
 #======================================================
 key_x = False
@@ -188,17 +141,11 @@ def onKeyPress(event):
 
     if event.key == 'c':
         if vline1 != None and vline2 != None :
-            coordX1 = float(vline1.get_xdata()[0])
-            coordX2 = float(vline2.get_xdata()[0])
-            # Check positions
-            coordsX1 = [float(line.get_xdata()[0]) for line in vline1List]
-            coordsX2 = [float(line.get_xdata()[0]) for line in vline2List]
-            if np.searchsorted(coordsX1, coordX1) != np.searchsorted(coordsX2, coordX2):
-                print("Error: Connection not possible because it would cross existing connections") 
-                return
+            coordx1 = float(vline1.get_xdata()[0])
+            coordx2 = float(vline2.get_xdata()[0])
             connect = ConnectionPatch(color='b', picker=5, clip_on=True, label='connection',
-                        xyA=(coordX1, axs[0].get_ylim()[0]), coordsA=axs[0].transData,
-                        xyB=(coordX2, axs[1].get_ylim()[1]), coordsB=axs[1].transData)
+                        xyA=(coordx1, axs[0].get_ylim()[0]), coordsA=axs[0].transData,
+                        xyB=(coordx2, axs[1].get_ylim()[1]), coordsB=axs[1].transData)
             fig.add_artist(connect)
             artistsList_Dict[id(connect)] = [connect, vline1, vline2]
             vline1List.append(vline1)
@@ -208,11 +155,12 @@ def onKeyPress(event):
             plt.draw()
 
     elif event.key == 'i':
-        coordsX1 = [float(line.get_xdata()[0]) for line in vline1List]
-        coordsX2 = [float(line.get_xdata()[0]) for line in vline2List]
-        df = pd.DataFrame({'coordsX1': coordsX1, 'coordsX2': coordsX2})
-        df.to_csv('points.csv', index=False, header=False, float_format="%.4f")
-        print(df.to_string(index=False, header=False, float_format="%.4f"))
+        print('Points1')
+        coordX = [float(line.get_xdata()[0]) for line in vline1List]
+        print(coordX)
+        print('Points2')
+        coordX = [float(line.get_xdata()[0]) for line in vline2List]
+        print(coordX)
 
     elif event.key == 'shift':
         key_shift = True
@@ -304,9 +252,6 @@ def onMotion(event):
     event.inaxes.figure.canvas.draw()
     
 #======================================================
-readData(fileData, x1Name, y1Name, x2Name, y2Name)
-
-#======================================================
 fig, axs = plt.subplots(2, 1, figsize=(10,8), num='Lineage')
 
 #======================================================
@@ -339,9 +284,6 @@ fig.canvas.mpl_connect('button_release_event',onRelease)
 fig.canvas.mpl_connect('motion_notify_event',onMotion)
 fig.canvas.mpl_connect('pick_event', onPick)
 fig.canvas.mpl_connect('scroll_event', zoom)
-
-#======================================================
-readPointers(filePointers)
 
 #======================================================
 plt.show()

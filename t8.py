@@ -1,11 +1,17 @@
 #=========================================================================================
-# Author: Patrick Brockmann CEA/DRF/LSCE - September 2024
-#=========================================================================================
+import pandas as pd
 
+df = pd.read_csv('testFile.csv')
+
+x1 = df['Time (ka)'].to_numpy()
+y1 = df['Stack Benthic d18O (per mil)'].to_numpy()
+x2 = df['depthODP849cm'].to_numpy()
+y2 = df['d18Oforams-b'].to_numpy()
+
+#=========================================================================================
 import sys
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 from matplotlib.patches import ConnectionPatch
 from matplotlib.lines import Line2D
 import matplotlib.patches as patches
@@ -15,59 +21,6 @@ import matplotlib as mpl
 mpl.rcParams['toolbar'] = 'None'
 plt.rc('xtick',labelsize=8)
 plt.rc('ytick',labelsize=8)
-
-#=========================================================================================
-# python lineage.py testFile.csv 'Time (ka)' 'Stack Benthic d18O (per mil)' 'depthODP849cm' 'd18Oforams-b' pointers1.csv
-
-fileData = sys.argv[1]
-x1Name = sys.argv[2]
-y1Name = sys.argv[3]
-x2Name = sys.argv[4]
-y2Name = sys.argv[5]
-filePointers = sys.argv[6]
-
-#=========================================================================================
-def readData(file, x1Name, y1Name, x2Name, y2Name):
-    global x1, y1, x2, y2
-
-    try:
-        df = pd.read_csv(file)
-        print(df.columns)
-
-        x1 = df[x1Name].to_numpy()
-        y1 = df[y1Name].to_numpy()
-        x2 = df[x2Name].to_numpy()
-        y2 = df[y2Name].to_numpy()
-
-    except:
-        print("Error: reading data file")
-
-#=========================================================================================
-def readPointers(file):
-    global artistsList_Dict, vline1List, vline2List
-
-    try:
-        df = pd.read_csv(file, names=['coordsX1','coordsX2'])
-        print(df.to_string(index=False, header=False, float_format="%.4f"))
-        for index, row in df.iterrows():
-            coordX1 = row['coordsX1']
-            coordX2 = row['coordsX2']
-            vline1 = axs[0].axvline(coordX1, color='b', linestyle='--', linewidth=1, label='vline')
-            vline2 = axs[1].axvline(coordX2, color='b', linestyle='--', linewidth=1, label='vline')
-            vline1List.append(vline1)
-            vline2List.append(vline2)
-            connect = ConnectionPatch(color='b', picker=5, clip_on=True, label='connection',
-                        xyA=(coordX1, axs[0].get_ylim()[0]), coordsA=axs[0].transData,
-                        xyB=(coordX2, axs[1].get_ylim()[1]), coordsB=axs[1].transData)
-            fig.add_artist(connect)
-            artistsList_Dict[id(connect)] = [connect, vline1, vline2]
-
-        axs[0].autoscale()
-        axs[1].autoscale()
-        updateConnect()
-
-    except:
-        print("Error: reading pointers file")
 
 #======================================================
 key_x = False
@@ -84,6 +37,46 @@ mousepress = None
 artistsList_Dict = {} 
 vline1List = []
 vline2List = []
+
+#------------------------------------------------------
+# From https://matplotlib.org/stable/gallery/event_handling/pick_event_demo.html
+def linePicker(line, mouseevent):
+    """
+    Find the points within a certain distance from the mouseclick in
+    data coords and attach some extra attributes, pickx and picky
+    which are the data points that were picked.
+    """
+    if mouseevent.xdata is None:
+        return False, dict()
+
+    if key_shift:
+        print("shift")
+        ind = None
+        pickx = mouseevent.xdata
+        picky = mouseevent.ydata
+        props = dict(ind=ind, pickx=pickx, picky=picky)
+        return True, props
+
+    elif key_control:
+        print("ctrl")
+        xdata = line.get_xdata()
+        ydata = line.get_ydata()
+        maxd = 0.05
+        d = np.sqrt(
+            #(xdata - mouseevent.xdata)**2 + (ydata - mouseevent.ydata)**2)
+            (xdata - mouseevent.xdata)**2)
+        ind, = np.nonzero(d <= maxd)
+        print(ind)
+        if len(ind):
+            pickx = xdata[ind]
+            picky = ydata[ind]
+            props = dict(ind=ind, pickx=pickx, picky=picky)
+            return True, props
+        else:
+            return False, dict()
+
+    else:
+            return False, dict()
 
 #------------------------------------------------------
 def onPick(event):
@@ -105,36 +98,23 @@ def onPick(event):
             plt.draw()
 
     elif artistLabel == 'curve':
-        if key_shift:
-            coordPoint = [event.mouseevent.xdata, event.mouseevent.ydata]
+
+        coordPoint = [event.pickx, event.picky]
+
+        if key_shift or key_control:
             if event.artist == curve1:
                 if vline1 != None:
                     vline1.set_data([coordPoint[0], coordPoint[0]], [0,1])
                 else:
                     vline1 = axs[0].axvline(coordPoint[0], color='b', linestyle='--', linewidth=1, label='vline')
+                plt.draw()
             elif event.artist == curve2:
                 if vline2 != None:
                     vline2.set_data([coordPoint[0], coordPoint[0]], [0,1])
                 else:
                     vline2 = axs[1].axvline(coordPoint[0], color='b', linestyle='--', linewidth=1, label='vline')
-            plt.draw()
+                plt.draw()
 
-    elif artistLabel == 'points':
-        if key_control:
-            ind = event.ind[0]
-            if event.artist == points1:
-                coordPoint = [x1[ind], y1[ind]]
-                if vline1 != None:
-                    vline1.set_data([coordPoint[0], coordPoint[0]], [0,1])
-                else:
-                    vline1 = axs[0].axvline(coordPoint[0], color='b', linestyle='--', linewidth=1, label='vline')
-            elif event.artist == points2:
-                coordPoint = [x2[ind], y2[ind]]
-                if vline2 != None:
-                    vline2.set_data([coordPoint[0], coordPoint[0]], [0,1])
-                else:
-                    vline2 = axs[1].axvline(coordPoint[0], color='b', linestyle='--', linewidth=1, label='vline')
-            plt.draw()
 
 #------------------------------------------------------
 def updateConnect():
@@ -177,28 +157,16 @@ def onKeyPress(event):
 
     sys.stdout.flush()
 
-    if event.key == 'a':
-        event.inaxes.relim()
-        event.inaxes.autoscale()
-        updateConnect()
-        event.inaxes.figure.canvas.draw()
-
     if event.key == 'x':
         key_x = True
 
     if event.key == 'c':
         if vline1 != None and vline2 != None :
-            coordX1 = float(vline1.get_xdata()[0])
-            coordX2 = float(vline2.get_xdata()[0])
-            # Check positions
-            coordsX1 = [float(line.get_xdata()[0]) for line in vline1List]
-            coordsX2 = [float(line.get_xdata()[0]) for line in vline2List]
-            if np.searchsorted(coordsX1, coordX1) != np.searchsorted(coordsX2, coordX2):
-                print("Error: Connection not possible because it would cross existing connections") 
-                return
+            coordx1 = float(vline1.get_xdata()[0])
+            coordx2 = float(vline2.get_xdata()[0])
             connect = ConnectionPatch(color='b', picker=5, clip_on=True, label='connection',
-                        xyA=(coordX1, axs[0].get_ylim()[0]), coordsA=axs[0].transData,
-                        xyB=(coordX2, axs[1].get_ylim()[1]), coordsB=axs[1].transData)
+                        xyA=(coordx1, axs[0].get_ylim()[0]), coordsA=axs[0].transData,
+                        xyB=(coordx2, axs[1].get_ylim()[1]), coordsB=axs[1].transData)
             fig.add_artist(connect)
             artistsList_Dict[id(connect)] = [connect, vline1, vline2]
             vline1List.append(vline1)
@@ -208,11 +176,12 @@ def onKeyPress(event):
             plt.draw()
 
     elif event.key == 'i':
-        coordsX1 = [float(line.get_xdata()[0]) for line in vline1List]
-        coordsX2 = [float(line.get_xdata()[0]) for line in vline2List]
-        df = pd.DataFrame({'coordsX1': coordsX1, 'coordsX2': coordsX2})
-        df.to_csv('points.csv', index=False, header=False, float_format="%.4f")
-        print(df.to_string(index=False, header=False, float_format="%.4f"))
+        print('Points1')
+        coordX = [float(line.get_xdata()[0]) for line in vline1List]
+        print(coordX)
+        print('Points2')
+        coordX = [float(line.get_xdata()[0]) for line in vline2List]
+        print(coordX)
 
     elif event.key == 'shift':
         key_shift = True
@@ -220,9 +189,9 @@ def onKeyPress(event):
     elif event.key == 'control':
         key_control = True
         if event.inaxes == axs[0]:
-            points1.set_visible(True)
+            curve1.set_markersize(2)
         elif event.inaxes == axs[1]:
-            points2.set_visible(True)
+            curve2.set_markersize(2)
         plt.draw()
 
 #------------------------------------------------------
@@ -239,9 +208,9 @@ def onKeyRelease(event):
     elif event.key == 'control':
         key_control = False 
         if event.inaxes == axs[0]:
-            points1.set_visible(False)
+            curve1.set_markersize(0)
         elif event.inaxes == axs[1]:
-            points2.set_visible(False)
+            curve2.set_markersize(0)
         plt.draw()
 
 #------------------------------------------------------
@@ -270,20 +239,7 @@ def onMotion(event):
 
     if event.inaxes not in axs:
         press = None
-        linecursor1.set_visible(False)
-        linecursor2.set_visible(False)
-        plt.draw()
         return
-
-    if event.inaxes is axs[0]:
-        linecursor1.set_visible(True)
-        linecursor2.set_visible(False)
-        linecursor1.set_xdata([event.xdata])
-    elif event.inaxes is axs[1]:
-        linecursor1.set_visible(False)
-        linecursor2.set_visible(True)
-        linecursor2.set_xdata([event.xdata])
-    event.inaxes.figure.canvas.draw()
 
     if press is None: return
 
@@ -304,29 +260,22 @@ def onMotion(event):
     event.inaxes.figure.canvas.draw()
     
 #======================================================
-readData(fileData, x1Name, y1Name, x2Name, y2Name)
-
-#======================================================
 fig, axs = plt.subplots(2, 1, figsize=(10,8), num='Lineage')
 
 #======================================================
 curve1Color = 'red'
-curve1 = Line2D(x1, y1, color=curve1Color, picker=True, pickradius=20, linewidth=0.5, label='curve') 
+curve1 = Line2D(x1, y1, color=curve1Color, picker=linePicker, pickradius=1, linewidth=0.5, label='curve', 
+                marker='o', markersize=0 , markerfacecolor=curve1Color, markeredgecolor=curve1Color)
 axs[0].add_artist(curve1)
-points1 = axs[0].scatter(x1, y1, s=5, marker='o', color=curve1Color, picker=True, pickradius=20, label='points')
-points1.set_visible(False)
-linecursor1 = axs[0].axvline(color='k', alpha=0.25, linewidth=1)
 axs[0].grid(visible=True, which='major', color='lightgray', linestyle='dashed', linewidth=0.5)
 axs[0].set_xlim(min(x1), max(x1))
 axs[0].set_ylim(min(y1), max(y1))
 
 #======================================================
 curve2Color = 'forestgreen'
-curve2 = Line2D(x2, y2, color=curve2Color, picker=True, pickradius=20, linewidth=0.5, label='curve')
+curve2 = Line2D(x2, y2, color=curve2Color, picker=linePicker, pickradius=1, linewidth=0.5, label='curve',
+                marker='o', markersize=0 , markerfacecolor=curve2Color, markeredgecolor=curve2Color)
 axs[1].add_artist(curve2)
-points2 = axs[1].scatter(x2, y2, s=5, marker='o', color=curve2Color, picker=True, pickradius=20, label='points')
-points2.set_visible(False)
-linecursor2 = axs[1].axvline(color='k', alpha=0.25, linewidth=1)
 axs[1].grid(visible=True, which='major', color='lightgray', linestyle='dashed', linewidth=0.5)
 axs[1].set_xlim(min(x2), max(x2))
 axs[1].set_ylim(min(y2), max(y2))
@@ -339,9 +288,6 @@ fig.canvas.mpl_connect('button_release_event',onRelease)
 fig.canvas.mpl_connect('motion_notify_event',onMotion)
 fig.canvas.mpl_connect('pick_event', onPick)
 fig.canvas.mpl_connect('scroll_event', zoom)
-
-#======================================================
-readPointers(filePointers)
 
 #======================================================
 plt.show()
