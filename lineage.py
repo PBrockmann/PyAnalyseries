@@ -22,7 +22,7 @@ def readData(file, x1Name, y1Name, x2Name, y2Name):
 
     try:
         df = pd.read_csv(file)
-        print(df.columns)
+        #print(df.columns)
 
         x1 = df[x1Name].to_numpy()
         y1 = df[y1Name].to_numpy()
@@ -278,6 +278,8 @@ def onMotion(event):
     if press is None: return
 
     if mousepress == "left":
+        linecursor1.set_visible(False)
+        linecursor2.set_visible(False)
         dx = event.xdata - xpress
         dy = event.ydata - ypress
         cur_xlim -= dx
@@ -285,9 +287,10 @@ def onMotion(event):
         event.inaxes.set_xlim(cur_xlim)
         event.inaxes.set_ylim(cur_ylim)
     elif mousepress == "right":
+        linecursor1.set_visible(False)
+        linecursor2.set_visible(False)
         dx = event.xdata - xpress
         dy = event.ydata - ypress
-        print(dx)
         event.inaxes.set_xlim([cur_xlim[0] + dx, cur_xlim[1] - dx])
         event.inaxes.set_ylim([cur_ylim[0] + dy, cur_ylim[1] - dy])
 
