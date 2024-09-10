@@ -17,16 +17,6 @@ plt.rc('xtick',labelsize=8)
 plt.rc('ytick',labelsize=8)
 
 #=========================================================================================
-# python lineage.py testFile.csv 'Time (ka)' 'Stack Benthic d18O (per mil)' 'depthODP849cm' 'd18Oforams-b' pointers1.csv
-
-fileData = sys.argv[1]
-x1Name = sys.argv[2]
-y1Name = sys.argv[3]
-x2Name = sys.argv[4]
-y2Name = sys.argv[5]
-filePointers = sys.argv[6]
-
-#=========================================================================================
 def readData(file, x1Name, y1Name, x2Name, y2Name):
     global x1, y1, x2, y2
 
@@ -48,7 +38,7 @@ def readPointers(file):
 
     try:
         df = pd.read_csv(file, names=['coordsX1','coordsX2'])
-        print(df.to_string(index=False, header=False, float_format="%.4f"))
+        print(df.to_string(index=False, header=False, float_format="%.8f"))
         for index, row in df.iterrows():
             coordX1 = row['coordsX1']
             coordX2 = row['coordsX2']
@@ -69,7 +59,7 @@ def readPointers(file):
     except:
         print("Error: reading pointers file")
 
-#======================================================
+#=========================================================================================
 key_x = False
 key_shift = False
 key_control = False
@@ -85,7 +75,7 @@ artistsList_Dict = {}
 vline1List = []
 vline2List = []
 
-#------------------------------------------------------
+#=========================================================================================
 def onPick(event):
     global vline1, vline2, artistsList_Dict, vline1List, vline2List
 
@@ -136,7 +126,7 @@ def onPick(event):
                     vline2 = axs[1].axvline(coordPoint[0], color='b', linestyle='--', linewidth=1, label='vline')
             plt.draw()
 
-#------------------------------------------------------
+#=========================================================================================
 def updateConnect():
     for artistsList in artistsList_Dict.values():
         if isinstance(artistsList[0], ConnectionPatch):
@@ -146,7 +136,7 @@ def updateConnect():
             x2, y2 = connect.xy2
             connect.xy2 = (x2, axs[1].get_ylim()[1]) 
 
-#------------------------------------------------------
+#=========================================================================================
 def zoom(event):
     scale_zoom = 1.2
     cur_xlim = event.inaxes.get_xlim()
@@ -171,7 +161,7 @@ def zoom(event):
     updateConnect()
     event.inaxes.figure.canvas.draw()
     
-#------------------------------------------------------
+#=========================================================================================
 def onKeyPress(event):
     global key_x, key_shift, key_control, vline1, vline2
 
@@ -211,8 +201,8 @@ def onKeyPress(event):
         coordsX1 = [float(line.get_xdata()[0]) for line in vline1List]
         coordsX2 = [float(line.get_xdata()[0]) for line in vline2List]
         df = pd.DataFrame({'coordsX1': coordsX1, 'coordsX2': coordsX2})
-        df.to_csv('points.csv', index=False, header=False, float_format="%.4f")
-        print(df.to_string(index=False, header=False, float_format="%.4f"))
+        df.to_csv('pointers.csv', index=False, header=False, float_format="%.8f")
+        print(df.to_string(index=False, header=False, float_format="%.8f"))
 
     elif event.key == 'shift':
         key_shift = True
@@ -225,7 +215,7 @@ def onKeyPress(event):
             points2.set_visible(True)
         plt.draw()
 
-#------------------------------------------------------
+#=========================================================================================
 def onKeyRelease(event):
     global key_x, key_shift, key_control
 
@@ -244,7 +234,7 @@ def onKeyRelease(event):
             points2.set_visible(False)
         plt.draw()
 
-#------------------------------------------------------
+#=========================================================================================
 def onPress(event):
     global cur_xlim, cur_ylim, press, xpress, ypress, mousepress
 
@@ -259,12 +249,12 @@ def onPress(event):
     press = event.xdata, event.ydata
     xpress, ypress = press
 
-#------------------------------------------------------
+#=========================================================================================
 def onRelease(event):
     global press
     press = None
 
-#------------------------------------------------------
+#=========================================================================================
 def onMotion(event):
     global cur_xlim, cur_ylim, press
 
@@ -297,19 +287,30 @@ def onMotion(event):
     elif mousepress == "right":
         dx = event.xdata - xpress
         dy = event.ydata - ypress
+        print(dx)
         event.inaxes.set_xlim([cur_xlim[0] + dx, cur_xlim[1] - dx])
         event.inaxes.set_ylim([cur_ylim[0] + dy, cur_ylim[1] - dy])
 
     updateConnect()
     event.inaxes.figure.canvas.draw()
     
-#======================================================
+##########################################################################################
+# python lineage.py testFile.csv 'Time (ka)' 'Stack Benthic d18O (per mil)' 'depthODP849cm' 'd18Oforams-b' pointers1.csv
+
+fileData = sys.argv[1]
+x1Name = sys.argv[2]
+y1Name = sys.argv[3]
+x2Name = sys.argv[4]
+y2Name = sys.argv[5]
+filePointers = sys.argv[6]
+
+#=========================================================================================
 readData(fileData, x1Name, y1Name, x2Name, y2Name)
 
-#======================================================
+#=========================================================================================
 fig, axs = plt.subplots(2, 1, figsize=(10,8), num='Lineage')
 
-#======================================================
+#=========================================================================================
 curve1Color = 'red'
 curve1 = Line2D(x1, y1, color=curve1Color, picker=True, pickradius=20, linewidth=0.5, label='curve') 
 axs[0].add_artist(curve1)
@@ -320,7 +321,7 @@ axs[0].grid(visible=True, which='major', color='lightgray', linestyle='dashed', 
 axs[0].set_xlim(min(x1), max(x1))
 axs[0].set_ylim(min(y1), max(y1))
 
-#======================================================
+#=========================================================================================
 curve2Color = 'forestgreen'
 curve2 = Line2D(x2, y2, color=curve2Color, picker=True, pickradius=20, linewidth=0.5, label='curve')
 axs[1].add_artist(curve2)
@@ -331,7 +332,7 @@ axs[1].grid(visible=True, which='major', color='lightgray', linestyle='dashed', 
 axs[1].set_xlim(min(x2), max(x2))
 axs[1].set_ylim(min(y2), max(y2))
 
-#======================================================
+#=========================================================================================
 fig.canvas.mpl_connect('key_press_event', onKeyPress)
 fig.canvas.mpl_connect('key_release_event', onKeyRelease)
 fig.canvas.mpl_connect('button_press_event',onPress)
@@ -340,8 +341,8 @@ fig.canvas.mpl_connect('motion_notify_event',onMotion)
 fig.canvas.mpl_connect('pick_event', onPick)
 fig.canvas.mpl_connect('scroll_event', zoom)
 
-#======================================================
+#=========================================================================================
 readPointers(filePointers)
 
-#======================================================
+#=========================================================================================
 plt.show()
