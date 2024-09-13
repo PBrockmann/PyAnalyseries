@@ -3,6 +3,7 @@
 #=========================================================================================
 
 import sys
+import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -74,6 +75,12 @@ def readPointers(file):
         coordsX1 = df['coordsX1'].to_numpy()
         coordsX2 = df['coordsX2'].to_numpy()
 
+        # check if arrays are monotonically increasing
+        if not (((np.diff(coordsX1) >= 0).all()) and ((np.diff(coordsX2) >= 0).all())):
+            coordsX1 = []
+            coordsX2 = []
+            print("Error: pointer coordinates are not monotonically increasing")
+
     except:
         print("Error: reading pointers file")
 
@@ -94,7 +101,7 @@ def updateConnections():
                 connect.set_visible(False)
 
 #=========================================================================================
-def drawConnections(interpolate=False):
+def drawConnections():
     global artistsList_Dict, vline1List, vline2List
 
     for objectId in artistsList_Dict.keys():
@@ -107,7 +114,6 @@ def drawConnections(interpolate=False):
     for i in range(len(coordsX1)):
         coordX1 = coordsX1[i]
         coordX2 = coordsX2[i]
-        if interpolate: coordX2 = coordX1
         vline1 = axs[0].axvline(coordX1, color='b', alpha=0.5, linestyle='--', linewidth=1, label='vline')
         vline2 = axs[1].axvline(coordX2, color='b', alpha=0.5, linestyle='--', linewidth=1, label='vline')
         vline1List.append(vline1)
@@ -128,7 +134,7 @@ def displayInterp(visible):
 
     if len(vline1List) <= 1:
         print("Warning: interpolation needs a minimum of 2 pointers")
-        return 
+        visible = False
 
     if curve2Interp:
         curve2Interp.remove()
@@ -136,23 +142,20 @@ def displayInterp(visible):
         x2Interp = []
 
     if visible:
-        cur_xlim = axs[0].get_xlim()
         axsInterp.set_visible(True)
-        coordsX1 = sorted([float(line.get_xdata()[0]) for line in vline1List])
-        coordsX2 = sorted([float(line.get_xdata()[0]) for line in vline2List])
         f = interpolate.interp1d(coordsX2, coordsX1, fill_value="extrapolate")
         x2Interp = f(x2)
-        curve2Interp, = axsInterp.plot(x2Interp, y2, color=curve2Color, linewidth=0.5)
-        axsInterp.set_xlim(cur_xlim)
+        curve2Interp, = axsInterp.plot(x2Interp, y2, color=curve2Color, alpha=0.8, linewidth=0.5)
         axsInterp.set_ylabel(y2Name)
-        plt.draw()
+        axsInterp.figure.canvas.draw()
     else:
         axsInterp.set_visible(False)
-        plt.draw()
+        axsInterp.relim()
+        axsInterp.figure.canvas.draw()
 
 #=========================================================================================
 def onPick(event):
-    global vline1, vline2, artistsList_Dict, vline1List, vline2List
+    global vline1, vline2, artistsList_Dict, vline1List, vline2List, coordsX1, coordsX2
 
     artistLabel = event.artist.get_label()
     #print(artistLabel)
@@ -168,6 +171,9 @@ def onPick(event):
                 if artist in vline2List:
                     vline2List.remove(artist)
             del artistsList_Dict[objectId]
+            coordsX1 = sorted([float(line.get_xdata()[0]) for line in vline1List])
+            coordsX2 = sorted([float(line.get_xdata()[0]) for line in vline2List])
+            displayInterp(showInterp)
             plt.draw()
 
     #-----------------------------------------------
@@ -233,16 +239,28 @@ def zoom(event):
     
 #=========================================================================================
 def onKeyPress(event):
-    global key_x, key_shift, key_control, vline1, vline2
+    global key_x, key_shift, key_control, vline1, vline2, coordsX1, coordsX2
     global showInterp
 
     sys.stdout.flush()
 
     #-----------------------------------------------
+    if event.key == 'A':
+        displayInterp(False)
+        event.inaxes.relim()
+        event.inaxes.autoscale()
+        updateConnections()
+        displayInterp(showInterp)
+        event.inaxes.figure.canvas.draw()
+        
+    #-----------------------------------------------
     if event.key == 'a':
+        displayInterp(False)
         linecursor1.set_visible(False)
         linecursor2.set_visible(False)
 
+        axs[0].relim()
+        axs[1].relim()
         axs[0].autoscale()
         axs[1].autoscale()
         ylim_axs0 = axs[0].get_ylim()
@@ -250,15 +268,20 @@ def onKeyPress(event):
 
         curve1.set_visible(False)
         curve2.set_visible(False)
-        if curve2Interp: curve2Interp.set_visible(False)
         axs[0].relim(visible_only=True)
         axs[1].relim(visible_only=True)
         axsInterp.relim(visible_only=True)
+        axs[0].autoscale()
+        axs[1].autoscale()
+        axsInterp.autoscale()
+        xlim_axs0 = axs[0].get_xlim()
+        xlim_axs1 = axs[1].get_xlim()
+
         curve1.set_visible(True)
         curve2.set_visible(True)
-        if curve2Interp: curve2Interp.set_visible(showInterp)
-        plt.draw()
-
+        displayInterp(showInterp)
+        axs[0].set_xlim(xlim_axs0)
+        axs[1].set_xlim(xlim_axs1)
         axs[0].set_ylim(ylim_axs0)
         axs[1].set_ylim(ylim_axs1)
 
@@ -275,8 +298,6 @@ def onKeyPress(event):
             coordX1 = float(vline1.get_xdata()[0])
             coordX2 = float(vline2.get_xdata()[0])
             # Check positions
-            coordsX1 = [float(line.get_xdata()[0]) for line in vline1List]
-            coordsX2 = [float(line.get_xdata()[0]) for line in vline2List]
             if np.searchsorted(coordsX1, coordX1) != np.searchsorted(coordsX2, coordX2):
                 print("Error: Connection not possible because it would cross existing connections") 
                 return
@@ -289,6 +310,8 @@ def onKeyPress(event):
             vline2List.append(vline2)
             vline1 = None
             vline2 = None
+            coordsX1 = sorted([float(line.get_xdata()[0]) for line in vline1List])
+            coordsX2 = sorted([float(line.get_xdata()[0]) for line in vline2List])
         
             displayInterp(showInterp)
             plt.draw()
@@ -297,7 +320,7 @@ def onKeyPress(event):
     elif event.key == 'h':
         print('''
 ===============================================================================
-Press h
+Press 'h'
     Display this help 
 -------------------------------------------------------------------------------
 Hold shift key while right click on a curve
@@ -309,7 +332,7 @@ Hold down ctrl key on a plot
 Hold down ctrl key on a plot while right click on a curve
     Create or move a pointer hooked on a point
 -------------------------------------------------------------------------------
-Press c key
+Press 'c' key
     Connect pointers
 -------------------------------------------------------------------------------
 Hold down x key while right click on a connection
@@ -324,27 +347,47 @@ Hold down right key mouse on a plot
 Hold down left key mouse on a plot
     Expand horizontal/vertical axis depending horizontal/vertical movement
 -------------------------------------------------------------------------------
-Press p key
+Press 'a' key on a plot
+    Plot the 2 curves with an automatic vertical range and a horizontal range according to pointers
+-------------------------------------------------------------------------------
+Press 'A' key on a plot
+    Plot the curve with automatic vertical and horizontal ranges
+-------------------------------------------------------------------------------
+Press 'p' key
     Save figure as pdf file
 -------------------------------------------------------------------------------
-Press i key
+Press 'i' key
     Save pointers to csv file
 -------------------------------------------------------------------------------
-Press z key
+Press 'z' key
     Display/Hide interpolated curve
 -------------------------------------------------------------------------------
-Press s key
+Press 's' key
     Save data to csv file
 -------------------------------------------------------------------------------
-Press q key
-    Quit
+Press 'q' key
+    Quit the application
 ===============================================================================
 ''')
 
     #-----------------------------------------------
     elif event.key == 'p':
-        plt.savefig('figure.pdf')
-        print("Info: saved pdf in file figure.pdf")
+
+        counterFilename = 1
+        fileNameTemplate = 'file_lineage_{}.pdf'
+        while os.path.isfile(fileNameTemplate.format("%02d" %counterFilename)):
+            counterFilename += 1
+        fileName = fileNameTemplate.format("%02d" %counterFilename)
+        plt.savefig(fileName)
+        print("Info: saved pdf in file ", fileName)
+
+        counterFilename = 1
+        fileNameTemplate = 'file_lineage_{}.png'
+        while os.path.isfile(fileNameTemplate.format("%02d" %counterFilename)):
+            counterFilename += 1
+        fileName = fileNameTemplate.format("%02d" %counterFilename)
+        plt.savefig(fileName)
+        print("Info: saved png in file ", fileName)
 
     #-----------------------------------------------
     elif event.key == 's':
@@ -355,8 +398,6 @@ Press q key
 
     #-----------------------------------------------
     elif event.key == 'i':
-        coordsX1 = sorted([float(line.get_xdata()[0]) for line in vline1List])
-        coordsX2 = sorted([float(line.get_xdata()[0]) for line in vline2List])
         df = pd.DataFrame({'coordsX1': coordsX1, 'coordsX2': coordsX2})
         print("Info: saved pointers in file pointers.csv")
         df.to_csv('pointers.csv', index=False, header=False, float_format="%.8f")
