@@ -2,6 +2,8 @@
 # Author: Patrick Brockmann CEA/DRF/LSCE - September 2024
 #=========================================================================================
 
+
+#=========================================================================================
 import sys
 import os
 import matplotlib.pyplot as plt
@@ -18,6 +20,8 @@ mpl.rcParams['toolbar'] = 'None'
 mpl.rcParams['axes.labelsize'] = 10
 mpl.rcParams['xtick.labelsize'] = 8
 mpl.rcParams['ytick.labelsize'] = 8
+
+version = "v0.90"
 
 #=========================================================================================
 key_x = False
@@ -255,10 +259,12 @@ def onKeyPress(event):
         
     #-----------------------------------------------
     if event.key == 'a':
+        # hide interpolated curve
         displayInterp(False)
         linecursor1.set_visible(False)
         linecursor2.set_visible(False)
 
+        # autoscale to get ylim range
         axs[0].relim()
         axs[1].relim()
         axs[0].autoscale()
@@ -266,6 +272,7 @@ def onKeyPress(event):
         ylim_axs0 = axs[0].get_ylim()
         ylim_axs1 = axs[1].get_ylim()
 
+        # autoscale to get xlim range only from pointers
         curve1.set_visible(False)
         curve2.set_visible(False)
         axs[0].relim(visible_only=True)
@@ -277,6 +284,7 @@ def onKeyPress(event):
         xlim_axs0 = axs[0].get_xlim()
         xlim_axs1 = axs[1].get_xlim()
 
+        # apply xlim and ylim ranges
         curve1.set_visible(True)
         curve2.set_visible(True)
         displayInterp(showInterp)
@@ -374,7 +382,7 @@ Press 'q' key
     elif event.key == 'p':
 
         counterFilename = 1
-        fileNameTemplate = 'file_lineage_{}.pdf'
+        fileNameTemplate = 'pdfFile_lineage_{}.pdf'
         while os.path.isfile(fileNameTemplate.format("%02d" %counterFilename)):
             counterFilename += 1
         fileName = fileNameTemplate.format("%02d" %counterFilename)
@@ -382,7 +390,7 @@ Press 'q' key
         print("Info: saved pdf in file ", fileName)
 
         counterFilename = 1
-        fileNameTemplate = 'file_lineage_{}.png'
+        fileNameTemplate = 'pngFile_lineage_{}.png'
         while os.path.isfile(fileNameTemplate.format("%02d" %counterFilename)):
             counterFilename += 1
         fileName = fileNameTemplate.format("%02d" %counterFilename)
@@ -391,17 +399,29 @@ Press 'q' key
 
     #-----------------------------------------------
     elif event.key == 's':
+
+        counterFilename = 1
+        fileNameTemplate = 'dataFile_lineage_{}.csv'
+        while os.path.isfile(fileNameTemplate.format("%02d" %counterFilename)):
+            counterFilename += 1
+        fileName = fileNameTemplate.format("%02d" %counterFilename)
         df = pd.DataFrame({x1Name: x1, y1Name: y1, x2Name: x2, y2Name: y2, 
                            y2Name + ' interpolated on ' + x1Name: x2Interp})
-        print("Info: saved data in file data.csv")
-        df.to_csv('data.csv', index=False, float_format="%.8f")
+        df.to_csv(fileName, index=False, float_format="%.8f")
+        print("Info: saved data in file ", fileName)
 
     #-----------------------------------------------
     elif event.key == 'i':
+
+        counterFilename = 1
+        fileNameTemplate = 'pointersFile_lineage_{}.csv'
+        while os.path.isfile(fileNameTemplate.format("%02d" %counterFilename)):
+            counterFilename += 1
+        fileName = fileNameTemplate.format("%02d" %counterFilename)
         df = pd.DataFrame({'coordsX1': coordsX1, 'coordsX2': coordsX2})
-        print("Info: saved pointers in file pointers.csv")
-        df.to_csv('pointers.csv', index=False, header=False, float_format="%.8f")
+        df.to_csv(fileName, index=False, header=False, float_format="%.8f")
         print(df.to_string(index=False, header=False, float_format="%.8f"))
+        print("Info: saved pointers in file ", fileName)
 
     #-----------------------------------------------
     elif event.key == 'z':

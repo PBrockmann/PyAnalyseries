@@ -68,8 +68,8 @@ Press 'q' key
  
 ## Captures
 
-![Capture 01](file_lineage_01.png)  
+![Capture 01](pngFile_lineage_01.png)  
 
-![Capture 02](file_lineage_02.png)  
+![Capture 02](pngFile_lineage_02.png)  
 
-![Capture 03](file_lineage_03.png)  
+![Capture 03](pngFile_lineage_03.png)  
