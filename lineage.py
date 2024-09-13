@@ -71,15 +71,15 @@ def readPointers(file):
 
     try:
         df = pd.read_csv(file, names=['coordsX1','coordsX2'])
-        print(df.to_string(index=False, header=False, float_format="%.8f"))
         coordsX1 = df['coordsX1'].to_numpy()
         coordsX2 = df['coordsX2'].to_numpy()
 
         # check if arrays are monotonically increasing
         if not (((np.diff(coordsX1) >= 0).all()) and ((np.diff(coordsX2) >= 0).all())):
+            print(df.to_string(index=False, header=False, float_format="%.8f"))
+            print("Error: pointer coordinates are not monotonically increasing")
             coordsX1 = []
             coordsX2 = []
-            print("Error: pointer coordinates are not monotonically increasing")
 
     except:
         print("Error: reading pointers file")
