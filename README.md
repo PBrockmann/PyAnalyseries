@@ -10,7 +10,7 @@ Based on:
 
 ## Usage
 
-python lineage.py testFile.csv 'Time (ka)' 'Stack Benthic d18O (per mil)' 'depthODP849cm' 'd18Oforams-b' pointers2.csv
+```python lineage.py testFile.csv 'Time (ka)' 'Stack Benthic d18O (per mil)' 'depthODP849cm' 'd18Oforams-b' pointers2.csv```
 
 ## Captures
 
