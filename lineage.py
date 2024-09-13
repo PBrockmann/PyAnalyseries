@@ -43,6 +43,10 @@ y1 = None
 x2 = None
 y2 = None
 x2Interp = None
+showInterp = False
+
+curve1Color = 'red'
+curve2Color = 'forestgreen'
 
 #=========================================================================================
 def readData(file, x1Name, y1Name, x2Name, y2Name):
@@ -117,6 +121,34 @@ def drawConnections(interpolate=False):
     axs[0].autoscale()
     axs[1].autoscale()
     updateConnections()
+
+#=========================================================================================
+def displayInterp(visible):
+    global x2Interp, curve2Interp
+
+    if len(vline1List) <= 1:
+        print("Warning: interpolation needs a minimum of 2 pointers")
+        return 
+
+    if curve2Interp:
+        curve2Interp.remove()
+        curve2Interp = None
+        x2Interp = []
+
+    if visible:
+        cur_xlim = axs[0].get_xlim()
+        axsInterp.set_visible(True)
+        coordsX1 = sorted([float(line.get_xdata()[0]) for line in vline1List])
+        coordsX2 = sorted([float(line.get_xdata()[0]) for line in vline2List])
+        f = interpolate.interp1d(coordsX2, coordsX1, fill_value="extrapolate")
+        x2Interp = f(x2)
+        curve2Interp, = axsInterp.plot(x2Interp, y2, color=curve2Color, linewidth=0.5)
+        axsInterp.set_xlim(cur_xlim)
+        axsInterp.set_ylabel(y2Name)
+        plt.draw()
+    else:
+        axsInterp.set_visible(False)
+        plt.draw()
 
 #=========================================================================================
 def onPick(event):
@@ -201,7 +233,8 @@ def zoom(event):
     
 #=========================================================================================
 def onKeyPress(event):
-    global key_x, key_shift, key_control, vline1, vline2, x2Interp, curve2Interp
+    global key_x, key_shift, key_control, vline1, vline2
+    global showInterp
 
     sys.stdout.flush()
 
@@ -209,21 +242,25 @@ def onKeyPress(event):
     if event.key == 'a':
         linecursor1.set_visible(False)
         linecursor2.set_visible(False)
-        curve1.set_visible(False)
-        curve2.set_visible(False)
-        #if curve2Interp: curve2Interp.set_visible(False)
-        axs[0].relim(visible_only=True)
-        axs[1].relim(visible_only=True)
-        #axsInterp.relim(visible_only=True)
+
         axs[0].autoscale()
         axs[1].autoscale()
+        ylim_axs0 = axs[0].get_ylim()
+        ylim_axs1 = axs[1].get_ylim()
 
+        curve1.set_visible(False)
+        curve2.set_visible(False)
+        if curve2Interp: curve2Interp.set_visible(False)
+        axs[0].relim(visible_only=True)
+        axs[1].relim(visible_only=True)
+        axsInterp.relim(visible_only=True)
         curve1.set_visible(True)
         curve2.set_visible(True)
-        axs[0].relim()
-        axs[0].autoscale(axis='y')
-        axs[1].relim()
-        axs[1].autoscale(axis='y')
+        if curve2Interp: curve2Interp.set_visible(showInterp)
+        plt.draw()
+
+        axs[0].set_ylim(ylim_axs0)
+        axs[1].set_ylim(ylim_axs1)
 
         updateConnections()
         plt.draw()
@@ -252,7 +289,62 @@ def onKeyPress(event):
             vline2List.append(vline2)
             vline1 = None
             vline2 = None
+        
+            displayInterp(showInterp)
             plt.draw()
+
+    #-----------------------------------------------
+    elif event.key == 'h':
+        print('''
+===============================================================================
+Press h
+    Display this help 
+-------------------------------------------------------------------------------
+Hold shift key while right click on a curve
+    Create or move a pointer
+-------------------------------------------------------------------------------
+Hold down ctrl key on a plot
+    Display points of the curve
+-------------------------------------------------------------------------------
+Hold down ctrl key on a plot while right click on a curve
+    Create or move a pointer hooked on a point
+-------------------------------------------------------------------------------
+Press c key
+    Connect pointers
+-------------------------------------------------------------------------------
+Hold down x key while right click on a connection
+    Delete the connection and its associated pointers
+-------------------------------------------------------------------------------
+Use wheel mouse on a plot
+    Zoom in/out in the plot
+-------------------------------------------------------------------------------
+Hold down right key mouse on a plot
+    Pan in the plot
+-------------------------------------------------------------------------------
+Hold down left key mouse on a plot
+    Expand horizontal/vertical axis depending horizontal/vertical movement
+-------------------------------------------------------------------------------
+Press p key
+    Save figure as pdf file
+-------------------------------------------------------------------------------
+Press i key
+    Save pointers to csv file
+-------------------------------------------------------------------------------
+Press z key
+    Display/Hide interpolated curve
+-------------------------------------------------------------------------------
+Press s key
+    Save data to csv file
+-------------------------------------------------------------------------------
+Press q key
+    Quit
+===============================================================================
+''')
+
+    #-----------------------------------------------
+    elif event.key == 'p':
+        plt.savefig('figure.pdf')
+        print("Info: saved pdf in file figure.pdf")
 
     #-----------------------------------------------
     elif event.key == 's':
@@ -272,18 +364,8 @@ def onKeyPress(event):
 
     #-----------------------------------------------
     elif event.key == 'z':
-        if len(vline1List) <= 1:
-            print("Warning: interpolation needs a minimum of 2 pointers")
-            return 
-        cur_xlim = axs[0].get_xlim()
-        axsInterp.set_visible(True)
-        coordsX1 = sorted([float(line.get_xdata()[0]) for line in vline1List])
-        coordsX2 = sorted([float(line.get_xdata()[0]) for line in vline2List])
-        f = interpolate.interp1d(coordsX2, coordsX1, fill_value="extrapolate")
-        x2Interp = f(x2)
-        curve2Interp, = axsInterp.plot(x2Interp, y2, color=curve2Color, linewidth=0.5)
-        axsInterp.set_xlim(cur_xlim)
-        plt.draw()
+        showInterp = not showInterp
+        displayInterp(showInterp)
 
     #-----------------------------------------------
     elif event.key == 'shift':
@@ -307,15 +389,6 @@ def onKeyRelease(event):
     #-----------------------------------------------
     if event.key == 'x':
         key_x = False
-
-    #-----------------------------------------------
-    elif event.key == 'z':
-        if curve2Interp:
-            curve2Interp.remove()
-            x2Interp = []
-            axsInterp.set_visible(False)
-            axsInterp.clear()
-            plt.draw()
 
     #-----------------------------------------------
     elif event.key == 'shift':
@@ -422,7 +495,6 @@ readData(fileData, x1Name, y1Name, x2Name, y2Name)
 fig, axs = plt.subplots(2, 1, figsize=(10,8), num='Lineage')
 
 #=========================================================================================
-curve1Color = 'red'
 curve1, = axs[0].plot(x1, y1, color=curve1Color, picker=True, pickradius=20, linewidth=0.5, label='curve') 
 points1 = axs[0].scatter(x1, y1, s=5, marker='o', color=curve1Color, picker=True, pickradius=20, label='points')
 points1.set_visible(False)
@@ -430,10 +502,10 @@ linecursor1 = axs[0].axvline(color='k', alpha=0.25, linewidth=1)
 axs[0].grid(visible=True, which='major', color='lightgray', linestyle='dashed', linewidth=0.5)
 axs[0].set_xlabel(x1Name)
 axs[0].set_ylabel(y1Name)
+axs[0].patch.set_alpha(0)
 axs[0].autoscale()
 
 #=========================================================================================
-curve2Color = 'forestgreen'
 curve2, = axs[1].plot(x2, y2, color=curve2Color, picker=True, pickradius=20, linewidth=0.5, label='curve')
 points2 = axs[1].scatter(x2, y2, s=5, marker='o', color=curve2Color, picker=True, pickradius=20, label='points')
 points2.set_visible(False)
@@ -446,7 +518,8 @@ axs[1].autoscale()
 #=========================================================================================
 axsInterp = axs[0].twinx()
 axsInterp.set_ylabel(y2Name)
-axsInterp.set_visible(False)
+axsInterp.set_zorder(-10)
+axsInterp.set_visible(showInterp)
 
 #=========================================================================================
 fig.canvas.mpl_connect('key_press_event', onKeyPress)
