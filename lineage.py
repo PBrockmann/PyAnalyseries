@@ -250,16 +250,25 @@ def onKeyPress(event):
 
     #-----------------------------------------------
     if event.key == 'A':
-        displayInterp(False)
+        # Full vertical range on the current plot
+
+        if event.inaxes not in axs: return
+
+        # hide 
+        linecursor1.set_visible(False)
+        linecursor2.set_visible(False)
+
+        # autoscale only on y
         event.inaxes.relim()
         event.inaxes.autoscale()
         updateConnections()
-        displayInterp(showInterp)
         event.inaxes.figure.canvas.draw()
-        
+
     #-----------------------------------------------
     if event.key == 'a':
-        # hide interpolated curve
+        # Full vertical range on both plots, horizontal range set from pointers 
+
+        # hide 
         displayInterp(False)
         linecursor1.set_visible(False)
         linecursor2.set_visible(False)
