@@ -254,14 +254,16 @@ def onKeyPress(event):
 
         if event.inaxes not in axs: return
 
-        # hide 
+        # hide
+        displayInterp(False)
         linecursor1.set_visible(False)
         linecursor2.set_visible(False)
 
         # autoscale only on y
         event.inaxes.relim()
-        event.inaxes.autoscale()
+        event.inaxes.autoscale(axis='y')
         updateConnections()
+        displayInterp(showInterp)
         event.inaxes.figure.canvas.draw()
 
     #-----------------------------------------------
