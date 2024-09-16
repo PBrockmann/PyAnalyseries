@@ -22,6 +22,10 @@ mpl.rcParams['xtick.labelsize'] = 8
 mpl.rcParams['ytick.labelsize'] = 8
 
 version = "v0.90"
+curve1Color = 'red'
+curve2Color = 'forestgreen'
+pointerColor = 'blue'
+curveWidth = 0.8 
 
 #=========================================================================================
 key_x = False
@@ -49,9 +53,7 @@ x2 = None
 y2 = None
 x2Interp = None
 showInterp = False
-
-curve1Color = 'red'
-curve2Color = 'forestgreen'
+second_xaxis = None
 
 #=========================================================================================
 def readData(file, x1Name, y1Name, x2Name, y2Name):
@@ -118,43 +120,53 @@ def drawConnections():
     for i in range(len(coordsX1)):
         coordX1 = coordsX1[i]
         coordX2 = coordsX2[i]
-        vline1 = axs[0].axvline(coordX1, color='b', alpha=0.5, linestyle='--', linewidth=1, label='vline')
-        vline2 = axs[1].axvline(coordX2, color='b', alpha=0.5, linestyle='--', linewidth=1, label='vline')
+        vline1 = axs[0].axvline(coordX1, color=pointerColor, alpha=0.5, linestyle='--', linewidth=1, label='vline')
+        vline2 = axs[1].axvline(coordX2, color=pointerColor, alpha=0.5, linestyle='--', linewidth=1, label='vline')
         vline1List.append(vline1)
         vline2List.append(vline2)
-        connect = ConnectionPatch(color='b', alpha=0.5, linewidth=1, picker=5, clip_on=True, label='connection',
+        connect = ConnectionPatch(color=pointerColor, alpha=0.5, linewidth=1, picker=5, clip_on=True, label='connection',
                     xyA=(coordX1, axs[0].get_ylim()[0]), coordsA=axs[0].transData,
                     xyB=(coordX2, axs[1].get_ylim()[1]), coordsB=axs[1].transData)
         fig.add_artist(connect)
         artistsList_Dict[id(connect)] = [connect, vline1, vline2]
 
-    axs[0].autoscale()
-    axs[1].autoscale()
     updateConnections()
+    setInterp()
 
 #=========================================================================================
-def displayInterp(visible):
-    global x2Interp, curve2Interp
+def setInterp():
+    global x2Interp, curve2Interp, second_xaxis
 
     if len(vline1List) <= 1:
         print("Warning: interpolation needs a minimum of 2 pointers")
-        visible = False
+        return
 
     if curve2Interp:
         curve2Interp.remove()
         curve2Interp = None
         x2Interp = []
+        second_xaxis.remove()
+        second_xaxis = None
 
-    if visible:
-        axsInterp.set_visible(True)
-        f = interpolate.interp1d(coordsX2, coordsX1, fill_value="extrapolate")
-        x2Interp = f(x2)
-        curve2Interp, = axsInterp.plot(x2Interp, y2, color=curve2Color, alpha=0.8, linewidth=0.5)
-        axsInterp.set_ylabel(y2Name)
-        axsInterp.figure.canvas.draw()
-    else:
-        axsInterp.set_visible(False)
-        axsInterp.relim()
+    f_1to2 = interpolate.interp1d(coordsX1, coordsX2, fill_value="extrapolate")
+    f_2to1 = interpolate.interp1d(coordsX2, coordsX1, fill_value="extrapolate")
+    second_xaxis = axsInterp.secondary_xaxis('top', functions=(f_1to2, f_2to1))
+    second_xaxis.tick_params(labelrotation=30)
+    second_xaxis.set_xlabel(x2Name)
+
+    x2Interp = f_2to1(x2)
+    curve2Interp, = axsInterp.plot(x2Interp, y2, color=curve2Color, alpha=0.8, linewidth=curveWidth)
+
+#=========================================================================================
+def displayInterp(visible):
+
+    if curve2Interp: 
+        if visible:
+            curve2Interp.set_visible(True)
+            axsInterp.set_visible(True)
+        else:
+            curve2Interp.set_visible(False)
+            axsInterp.set_visible(False)
         axsInterp.figure.canvas.draw()
 
 #=========================================================================================
@@ -177,8 +189,8 @@ def onPick(event):
             del artistsList_Dict[objectId]
             coordsX1 = sorted([float(line.get_xdata()[0]) for line in vline1List])
             coordsX2 = sorted([float(line.get_xdata()[0]) for line in vline2List])
+            setInterp()
             displayInterp(showInterp)
-            plt.draw()
 
     #-----------------------------------------------
     elif artistLabel == 'curve':
@@ -188,13 +200,13 @@ def onPick(event):
                 if vline1 != None:
                     vline1.set_data([coordPoint[0], coordPoint[0]], [0,1])
                 else:
-                    vline1 = axs[0].axvline(coordPoint[0], color='b', alpha=0.5, linestyle='--', linewidth=1, label='vline')
+                    vline1 = axs[0].axvline(coordPoint[0], color=pointerColor, alpha=0.5, linestyle='--', linewidth=1, label='vline')
             elif event.artist == curve2:
                 if vline2 != None:
                     vline2.set_data([coordPoint[0], coordPoint[0]], [0,1])
                 else:
-                    vline2 = axs[1].axvline(coordPoint[0], color='b', alpha=0.5, linestyle='--', linewidth=1, label='vline')
-            plt.draw()
+                    vline2 = axs[1].axvline(coordPoint[0], color=pointerColor, alpha=0.5, linestyle='--', linewidth=1, label='vline')
+            fig.canvas.draw()
 
     #-----------------------------------------------
     elif artistLabel == 'points':
@@ -205,14 +217,14 @@ def onPick(event):
                 if vline1 != None:
                     vline1.set_data([coordPoint[0], coordPoint[0]], [0,1])
                 else:
-                    vline1 = axs[0].axvline(coordPoint[0], color='b', linestyle='--', linewidth=1, label='vline')
+                    vline1 = axs[0].axvline(coordPoint[0], color=pointerColor, linestyle='--', linewidth=1, label='vline')
             elif event.artist == points2:
                 coordPoint = [x2[ind], y2[ind]]
                 if vline2 != None:
                     vline2.set_data([coordPoint[0], coordPoint[0]], [0,1])
                 else:
-                    vline2 = axs[1].axvline(coordPoint[0], color='b', linestyle='--', linewidth=1, label='vline')
-            plt.draw()
+                    vline2 = axs[1].axvline(coordPoint[0], color=pointerColor, linestyle='--', linewidth=1, label='vline')
+            fig.canvas.draw()
 
 #=========================================================================================
 def zoom(event):
@@ -242,6 +254,48 @@ def zoom(event):
         event.inaxes.figure.canvas.draw()
     
 #=========================================================================================
+def updateAxes():
+    # Full vertical range on both plots, horizontal range set from pointers 
+    
+    # autoscale to get ylim range
+    axs[0].relim()
+    axs[1].relim()
+    axs[0].autoscale(axis='y')
+    axs[1].autoscale(axis='y')
+    ylim_axs0 = axs[0].get_ylim()
+    ylim_axs1 = axs[1].get_ylim()
+    
+    # hide 
+    displayInterp(False)
+    linecursor1.set_visible(False)
+    linecursor2.set_visible(False)
+
+    # autoscale to get xlim range only from pointers
+    curve1.set_visible(False)
+    curve2.set_visible(False)
+    axs[0].relim(visible_only=True)
+    axs[1].relim(visible_only=True)
+    axsInterp.relim(visible_only=True)
+    axs[0].autoscale()
+    axs[1].autoscale()
+    axsInterp.autoscale()
+    xlim_axs0 = axs[0].get_xlim()
+    xlim_axs1 = axs[1].get_xlim()
+    
+    # apply xlim and ylim ranges
+    curve1.set_visible(True)
+    curve2.set_visible(True)
+    axs[0].set_xlim(xlim_axs0)
+    axs[1].set_xlim(xlim_axs1)
+    axs[0].set_ylim(ylim_axs0)
+    axs[1].set_ylim(ylim_axs1)
+    fig.canvas.draw()
+    
+    updateConnections()
+    fig.canvas.draw()
+    displayInterp(showInterp)
+
+#=========================================================================================
 def onKeyPress(event):
     global key_x, key_shift, key_control, vline1, vline2, coordsX1, coordsX2
     global showInterp
@@ -255,7 +309,6 @@ def onKeyPress(event):
         if event.inaxes not in axs: return
 
         # hide
-        displayInterp(False)
         linecursor1.set_visible(False)
         linecursor2.set_visible(False)
 
@@ -263,49 +316,11 @@ def onKeyPress(event):
         event.inaxes.relim()
         event.inaxes.autoscale(axis='y')
         updateConnections()
-        displayInterp(showInterp)
         event.inaxes.figure.canvas.draw()
 
     #-----------------------------------------------
     if event.key == 'a':
-        # Full vertical range on both plots, horizontal range set from pointers 
-
-        # hide 
-        displayInterp(False)
-        linecursor1.set_visible(False)
-        linecursor2.set_visible(False)
-
-        # autoscale to get ylim range
-        axs[0].relim()
-        axs[1].relim()
-        axs[0].autoscale()
-        axs[1].autoscale()
-        ylim_axs0 = axs[0].get_ylim()
-        ylim_axs1 = axs[1].get_ylim()
-
-        # autoscale to get xlim range only from pointers
-        curve1.set_visible(False)
-        curve2.set_visible(False)
-        axs[0].relim(visible_only=True)
-        axs[1].relim(visible_only=True)
-        axsInterp.relim(visible_only=True)
-        axs[0].autoscale()
-        axs[1].autoscale()
-        axsInterp.autoscale()
-        xlim_axs0 = axs[0].get_xlim()
-        xlim_axs1 = axs[1].get_xlim()
-
-        # apply xlim and ylim ranges
-        curve1.set_visible(True)
-        curve2.set_visible(True)
-        displayInterp(showInterp)
-        axs[0].set_xlim(xlim_axs0)
-        axs[1].set_xlim(xlim_axs1)
-        axs[0].set_ylim(ylim_axs0)
-        axs[1].set_ylim(ylim_axs1)
-
-        updateConnections()
-        plt.draw()
+        updateAxes()
 
     #-----------------------------------------------
     if event.key == 'x':
@@ -320,7 +335,7 @@ def onKeyPress(event):
             if np.searchsorted(coordsX1, coordX1) != np.searchsorted(coordsX2, coordX2):
                 print("Error: Connection not possible because it would cross existing connections") 
                 return
-            connect = ConnectionPatch(color='b', alpha=0.5, linewidth=1, picker=5, clip_on=True, label='connection',
+            connect = ConnectionPatch(color=pointerColor, alpha=0.5, linewidth=1, picker=5, clip_on=True, label='connection',
                         xyA=(coordX1, axs[0].get_ylim()[0]), coordsA=axs[0].transData,
                         xyB=(coordX2, axs[1].get_ylim()[1]), coordsB=axs[1].transData)
             fig.add_artist(connect)
@@ -332,8 +347,8 @@ def onKeyPress(event):
             coordsX1 = sorted([float(line.get_xdata()[0]) for line in vline1List])
             coordsX2 = sorted([float(line.get_xdata()[0]) for line in vline2List])
         
+            setInterp()
             displayInterp(showInterp)
-            plt.draw()
 
     #-----------------------------------------------
     elif event.key == 'h':
@@ -545,6 +560,9 @@ def onMotion(event):
         zoomFactor = 1.2 
         event.inaxes.set_xlim(cur_xlim[0] + dx * zoomFactor, cur_xlim[1] - dx * zoomFactor)
         event.inaxes.set_ylim(cur_ylim[0] + dy * zoomFactor, cur_ylim[1] - dy * zoomFactor)
+       
+        if event.inaxes == axs[1]:
+            axsInterp.set_ylim(cur_ylim[0] + dy * zoomFactor, cur_ylim[1] - dy * zoomFactor)
 
     updateConnections()
     event.inaxes.figure.canvas.draw()
@@ -567,7 +585,7 @@ readData(fileData, x1Name, y1Name, x2Name, y2Name)
 fig, axs = plt.subplots(2, 1, figsize=(10,8), num='Lineage')
 
 #=========================================================================================
-curve1, = axs[0].plot(x1, y1, color=curve1Color, picker=True, pickradius=20, linewidth=0.5, label='curve') 
+curve1, = axs[0].plot(x1, y1, color=curve1Color, picker=True, pickradius=20, linewidth=curveWidth, label='curve') 
 points1 = axs[0].scatter(x1, y1, s=5, marker='o', color=curve1Color, picker=True, pickradius=20, label='points')
 points1.set_visible(False)
 linecursor1 = axs[0].axvline(color='k', alpha=0.25, linewidth=1)
@@ -578,7 +596,7 @@ axs[0].patch.set_alpha(0)
 axs[0].autoscale()
 
 #=========================================================================================
-curve2, = axs[1].plot(x2, y2, color=curve2Color, picker=True, pickradius=20, linewidth=0.5, label='curve')
+curve2, = axs[1].plot(x2, y2, color=curve2Color, picker=True, pickradius=20, linewidth=curveWidth, label='curve')
 points2 = axs[1].scatter(x2, y2, s=5, marker='o', color=curve2Color, picker=True, pickradius=20, label='points')
 points2.set_visible(False)
 linecursor2 = axs[1].axvline(color='k', alpha=0.25, linewidth=1)
@@ -589,6 +607,7 @@ axs[1].autoscale()
 
 #=========================================================================================
 axsInterp = axs[0].twinx()
+axsInterp.sharey(axs[1])
 axsInterp.set_ylabel(y2Name)
 axsInterp.set_zorder(-10)
 axsInterp.set_visible(showInterp)
@@ -605,6 +624,8 @@ fig.canvas.mpl_connect('scroll_event', zoom)
 #=========================================================================================
 readPointers(filePointers)
 drawConnections()
+setInterp()
+updateAxes()
 
 #=========================================================================================
 plt.show()
