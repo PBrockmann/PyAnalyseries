@@ -50,7 +50,7 @@ Press 'A' key on a plot
     Plot the curve with automatic vertical and horizontal ranges
 -------------------------------------------------------------------------------
 Press 'p' key
-    Save figure as pdf file
+    Save figure as pdf file and png file
 -------------------------------------------------------------------------------
 Press 'i' key
     Save pointers to csv file
