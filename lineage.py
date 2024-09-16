@@ -34,6 +34,7 @@ usage = """
 ####################################################################################################################
 Usage:  lineage.py [-h]
         [-p filePointers]
+        [-k kindInterpolation]
         fileCSV x1Name y1Name x2Name y2Name
 
 Options:
@@ -41,6 +42,8 @@ Options:
                 Print this manual
         -p, --pointers
                 Pointers file (csv format, 2 columns, no header)
+        -k, --kind
+                Interpolation kind 'linear' or 'quadratic' (default 'linear')
 
 Examples:
         lineage.py -p pointers2.csv testFile.csv 'Time (ka)' 'Stack Benthic d18O (per mil)' 'depthODP849cm' 'd18Oforams-b'
@@ -102,6 +105,7 @@ Press 'q' key
 """
 #=========================================================================================
 filePointers = None
+kindInterpolation = 'linear'
 
 while len(sys.argv[1:]) != 0:
     if sys.argv[1] in ('-h', '--help'):
@@ -110,6 +114,10 @@ while len(sys.argv[1:]) != 0:
         sys.exit(1)
     elif sys.argv[1] in ('-p', '--pointers'):
         filePointers = sys.argv[2]
+        del(sys.argv[1])
+        del(sys.argv[1])
+    elif sys.argv[1] in ('-k', '--kind'):
+        kindInterpolation = sys.argv[2]
         del(sys.argv[1])
         del(sys.argv[1])
     elif re.match('-', sys.argv[1]):
@@ -122,6 +130,12 @@ if len(sys.argv[1:]) != 5:
     print(usage)
     sys.exit(1)
 
+# -------------------------
+if kindInterpolation not in ('linear', 'quadratic'):
+    print(usage)
+    sys.exit(1)
+
+# -------------------------
 fileData = sys.argv[1]
 x1Name = sys.argv[2]
 y1Name = sys.argv[3]
@@ -249,9 +263,8 @@ def setInterp():
         second_xaxis.remove()
         second_xaxis = None
 
-    kind = 'linear' 
-    f_1to2 = interpolate.interp1d(coordsX1, coordsX2, kind=kind, fill_value="extrapolate")
-    f_2to1 = interpolate.interp1d(coordsX2, coordsX1, kind=kind, fill_value="extrapolate")
+    f_1to2 = interpolate.interp1d(coordsX1, coordsX2, kind=kindInterpolation, fill_value="extrapolate")
+    f_2to1 = interpolate.interp1d(coordsX2, coordsX1, kind=kindInterpolation, fill_value="extrapolate")
     second_xaxis = axsInterp.secondary_xaxis('top', functions=(f_1to2, f_2to1))
     second_xaxis.tick_params(labelrotation=30)
     second_xaxis.set_xlabel(x2Name)
@@ -486,7 +499,7 @@ def onKeyPress(event):
 
         with pd.ExcelWriter(fileName) as writer:
             df = pd.DataFrame({x1Name: x1, y1Name: y1, x2Name: x2, y2Name: y2, 
-                                y2Name + ' interpolated on ' + x1Name: x2Interp})
+                                y2Name + ' interpolated (' + kindInterpolation + ') on ' + x1Name: x2Interp})
             df.to_excel(writer, sheet_name='Data', index=False, float_format="%.8f")
 
             df = pd.DataFrame({'coordsX1': coordsX1, 'coordsX2': coordsX2})
