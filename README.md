@@ -7,6 +7,7 @@ Select interactively match points on 2 curves to visualize the resulting interpo
 Based on:
  * matplotlib
  * scipy
+ * openpyxl
 
 ## Captures
 
@@ -79,7 +80,7 @@ Press 'z' key
     Display/Hide interpolated curve
 -------------------------------------------------------------------------------
 Press 's' key
-    Save data to csv file
+    Save data and pointers as excel file
 -------------------------------------------------------------------------------
 Press 'q' key
     Quit the application

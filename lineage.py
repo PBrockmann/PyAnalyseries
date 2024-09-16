@@ -95,7 +95,7 @@ Press 'z' key
     Display/Hide interpolated curve
 -------------------------------------------------------------------------------
 Press 's' key
-    Save data to csv file
+    Save data and pointers as excel file
 -------------------------------------------------------------------------------
 Press 'q' key
     Quit the application
@@ -249,8 +249,9 @@ def setInterp():
         second_xaxis.remove()
         second_xaxis = None
 
-    f_1to2 = interpolate.interp1d(coordsX1, coordsX2, fill_value="extrapolate")
-    f_2to1 = interpolate.interp1d(coordsX2, coordsX1, fill_value="extrapolate")
+    kind = 'linear' 
+    f_1to2 = interpolate.interp1d(coordsX1, coordsX2, kind=kind, fill_value="extrapolate")
+    f_2to1 = interpolate.interp1d(coordsX2, coordsX1, kind=kind, fill_value="extrapolate")
     second_xaxis = axsInterp.secondary_xaxis('top', functions=(f_1to2, f_2to1))
     second_xaxis.tick_params(labelrotation=30)
     second_xaxis.set_xlabel(x2Name)
@@ -478,13 +479,19 @@ def onKeyPress(event):
     elif event.key == 's':
 
         counterFilename = 1
-        fileNameTemplate = 'dataFile_lineage_{}.csv'
+        fileNameTemplate = 'dataFile_lineage_{}.xlsx'
         while os.path.isfile(fileNameTemplate.format("%02d" %counterFilename)):
             counterFilename += 1
         fileName = fileNameTemplate.format("%02d" %counterFilename)
-        df = pd.DataFrame({x1Name: x1, y1Name: y1, x2Name: x2, y2Name: y2, 
-                           y2Name + ' interpolated on ' + x1Name: x2Interp})
-        df.to_csv(fileName, index=False, float_format="%.8f")
+
+        with pd.ExcelWriter(fileName) as writer:
+            df = pd.DataFrame({x1Name: x1, y1Name: y1, x2Name: x2, y2Name: y2, 
+                                y2Name + ' interpolated on ' + x1Name: x2Interp})
+            df.to_excel(writer, sheet_name='Data', index=False, float_format="%.8f")
+
+            df = pd.DataFrame({'coordsX1': coordsX1, 'coordsX2': coordsX2})
+            df.to_excel(writer, sheet_name='Pointers', index=False, float_format="%.8f")
+
         print("Info: saved data in file ", fileName)
 
     #-----------------------------------------------
@@ -495,8 +502,10 @@ def onKeyPress(event):
         while os.path.isfile(fileNameTemplate.format("%02d" %counterFilename)):
             counterFilename += 1
         fileName = fileNameTemplate.format("%02d" %counterFilename)
+
         df = pd.DataFrame({'coordsX1': coordsX1, 'coordsX2': coordsX2})
         df.to_csv(fileName, index=False, header=False, float_format="%.8f")
+
         print(df.to_string(index=False, header=False, float_format="%.8f"))
         print("Info: saved pointers in file ", fileName)
 
