@@ -1,11 +1,13 @@
+#!/usr/bin/env python
+
 #=========================================================================================
 # Author: Patrick Brockmann CEA/DRF/LSCE - September 2024
 #=========================================================================================
 
-
 #=========================================================================================
 import sys
 import os
+import re
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -26,6 +28,105 @@ curve1Color = 'red'
 curve2Color = 'forestgreen'
 pointerColor = 'blue'
 curveWidth = 0.8 
+
+#=========================================================================================
+usage = """
+####################################################################################################################
+Usage:  lineage.py [-h]
+        [-p filePointers]
+        fileCSV x1Name y1Name x2Name y2Name
+
+Options:
+        -h, -?, --help, -help
+                Print this manual
+        -p, --pointers
+                Pointers file (csv format, 2 columns, no header)
+
+Examples:
+        lineage.py -p pointers2.csv testFile.csv 'Time (ka)' 'Stack Benthic d18O (per mil)' 'depthODP849cm' 'd18Oforams-b'
+"""
+
+#=========================================================================================
+interactions = """
+####################################################################################################################
+Interactions:
+
+-------------------------------------------------------------------------------
+Press 'h'
+    Display this help 
+-------------------------------------------------------------------------------
+Hold shift key while right click on a curve
+    Create or move a pointer
+-------------------------------------------------------------------------------
+Hold down ctrl key on a plot
+    Display points of the curve
+-------------------------------------------------------------------------------
+Hold down ctrl key on a plot while right click on a curve
+    Create or move a pointer hooked on a point
+-------------------------------------------------------------------------------
+Press 'c' key
+    Connect pointers
+-------------------------------------------------------------------------------
+Hold down x key while right click on a connection
+    Delete the connection and its associated pointers
+-------------------------------------------------------------------------------
+Use wheel mouse on a plot
+    Zoom in/out in the plot
+-------------------------------------------------------------------------------
+Hold down right key mouse on a plot
+    Pan in the plot
+-------------------------------------------------------------------------------
+Hold down left key mouse on a plot
+    Expand horizontal/vertical axis depending horizontal/vertical movement
+-------------------------------------------------------------------------------
+Press 'a' key on a plot
+    Plot the 2 curves with an automatic vertical range and a horizontal range according to pointers
+-------------------------------------------------------------------------------
+Press 'A' key on a plot
+    Plot the curve with automatic vertical and horizontal ranges
+-------------------------------------------------------------------------------
+Press 'p' key
+    Save figure as pdf file and png file
+-------------------------------------------------------------------------------
+Press 'i' key
+    Save pointers to csv file
+-------------------------------------------------------------------------------
+Press 'z' key
+    Display/Hide interpolated curve
+-------------------------------------------------------------------------------
+Press 's' key
+    Save data to csv file
+-------------------------------------------------------------------------------
+Press 'q' key
+    Quit the application
+"""
+#=========================================================================================
+filePointers = None
+
+while len(sys.argv[1:]) != 0:
+    if sys.argv[1] in ('-h', '--help'):
+        del(sys.argv[1])
+        print(usage)
+        sys.exit(1)
+    elif sys.argv[1] in ('-p', '--pointers'):
+        filePointers = sys.argv[2]
+        del(sys.argv[1])
+        del(sys.argv[1])
+    elif re.match('-', sys.argv[1]):
+        print('Unknown option')
+        break
+    else:
+        break
+
+if len(sys.argv[1:]) != 5:
+    print(usage)
+    sys.exit(1)
+
+fileData = sys.argv[1]
+x1Name = sys.argv[2]
+y1Name = sys.argv[3]
+x2Name = sys.argv[4]
+y2Name = sys.argv[5]
 
 #=========================================================================================
 key_x = False
@@ -352,57 +453,7 @@ def onKeyPress(event):
 
     #-----------------------------------------------
     elif event.key == 'h':
-        print('''
-===============================================================================
-Press 'h'
-    Display this help 
--------------------------------------------------------------------------------
-Hold shift key while right click on a curve
-    Create or move a pointer
--------------------------------------------------------------------------------
-Hold down ctrl key on a plot
-    Display points of the curve
--------------------------------------------------------------------------------
-Hold down ctrl key on a plot while right click on a curve
-    Create or move a pointer hooked on a point
--------------------------------------------------------------------------------
-Press 'c' key
-    Connect pointers
--------------------------------------------------------------------------------
-Hold down x key while right click on a connection
-    Delete the connection and its associated pointers
--------------------------------------------------------------------------------
-Use wheel mouse on a plot
-    Zoom in/out in the plot
--------------------------------------------------------------------------------
-Hold down right key mouse on a plot
-    Pan in the plot
--------------------------------------------------------------------------------
-Hold down left key mouse on a plot
-    Expand horizontal/vertical axis depending horizontal/vertical movement
--------------------------------------------------------------------------------
-Press 'a' key on a plot
-    Plot the 2 curves with an automatic vertical range and a horizontal range according to pointers
--------------------------------------------------------------------------------
-Press 'A' key on a plot
-    Plot the curve with automatic vertical and horizontal ranges
--------------------------------------------------------------------------------
-Press 'p' key
-    Save figure as pdf file and png file
--------------------------------------------------------------------------------
-Press 'i' key
-    Save pointers to csv file
--------------------------------------------------------------------------------
-Press 'z' key
-    Display/Hide interpolated curve
--------------------------------------------------------------------------------
-Press 's' key
-    Save data to csv file
--------------------------------------------------------------------------------
-Press 'q' key
-    Quit the application
-===============================================================================
-''')
+        print(interactions)
 
     #-----------------------------------------------
     elif event.key == 'p':
@@ -569,14 +620,6 @@ def onMotion(event):
     event.inaxes.figure.canvas.flush_events()
     
 ##########################################################################################
-# python lineage.py testFile.csv 'Time (ka)' 'Stack Benthic d18O (per mil)' 'depthODP849cm' 'd18Oforams-b' pointers1.csv
-
-fileData = sys.argv[1]
-x1Name = sys.argv[2]
-y1Name = sys.argv[3]
-x2Name = sys.argv[4]
-y2Name = sys.argv[5]
-filePointers = sys.argv[6]
 
 #=========================================================================================
 readData(fileData, x1Name, y1Name, x2Name, y2Name)
@@ -622,10 +665,11 @@ fig.canvas.mpl_connect('pick_event', onPick)
 fig.canvas.mpl_connect('scroll_event', zoom)
 
 #=========================================================================================
-readPointers(filePointers)
-drawConnections()
-setInterp()
-updateAxes()
+if filePointers:
+    readPointers(filePointers)
+    drawConnections()
+    setInterp()
+    updateAxes()
 
 #=========================================================================================
 plt.show()

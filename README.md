@@ -8,14 +8,34 @@ Based on:
  * matplotlib
  * scipy
 
+## Captures
+
+![Capture 01](pngFile_lineage_01.png)  
+
+![Capture 02](pngFile_lineage_02.png)  
+
 ## Usage
 
-```python lineage.py testFile.csv 'Time (ka)' 'Stack Benthic d18O (per mil)' 'depthODP849cm' 'd18Oforams-b' pointers2.csv```
+```
+Usage:  lineage.py [-h]
+        [-p filePointers]
+        fileCSV x1Name y1Name x2Name y2Name
 
-## Help
+Options:
+        -h, -?, --help, -help
+                Print this manual
+        -p, --pointers
+                Pointers file (csv format, 2 columns, no header)
+
+Examples:
+        lineage.py -p pointers2.csv testFile.csv 'Time (ka)' 'Stack Benthic d18O (per mil)' 'depthODP849cm' 'd18Oforams-b'
 
 ```
-===============================================================================
+
+## Interactions 
+
+```
+-------------------------------------------------------------------------------
 Press 'h'
     Display this help 
 -------------------------------------------------------------------------------
@@ -63,11 +83,5 @@ Press 's' key
 -------------------------------------------------------------------------------
 Press 'q' key
     Quit the application
-===============================================================================
 ```
  
-## Captures
-
-![Capture 01](pngFile_lineage_01.png)  
-
-![Capture 02](pngFile_lineage_02.png)  
