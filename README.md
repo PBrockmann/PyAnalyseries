@@ -18,8 +18,10 @@ Based on:
 ## Usage
 
 ```
+####################################################################################################################
 Usage:  lineage.py [-h]
         [-p filePointers]
+        [-k kindInterpolation]
         fileCSV x1Name y1Name x2Name y2Name
 
 Options:
@@ -27,10 +29,11 @@ Options:
                 Print this manual
         -p, --pointers
                 Pointers file (csv format, 2 columns, no header)
+        -k, --kind
+                Interpolation kind 'linear' or 'quadratic' (default 'linear')
 
 Examples:
         lineage.py -p pointers2.csv testFile.csv 'Time (ka)' 'Stack Benthic d18O (per mil)' 'depthODP849cm' 'd18Oforams-b'
-
 ```
 
 ## Interactions 
