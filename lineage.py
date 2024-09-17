@@ -23,7 +23,7 @@ mpl.rcParams['axes.labelsize'] = 10
 mpl.rcParams['xtick.labelsize'] = 8
 mpl.rcParams['ytick.labelsize'] = 8
 
-version = "v0.90"
+version = "v0.91"
 curve1Color = 'red'
 curve2Color = 'forestgreen'
 pointerColor = 'blue'
@@ -93,6 +93,9 @@ Press 'p' key
 -------------------------------------------------------------------------------
 Press 'i' key
     Save pointers to csv file
+-------------------------------------------------------------------------------
+Press 'X' key
+    Delete all pointers and connections 
 -------------------------------------------------------------------------------
 Press 'z' key
     Display/Hide interpolated curve
@@ -223,8 +226,8 @@ def updateConnections():
                 connect.set_visible(False)
 
 #=========================================================================================
-def drawConnections():
-    global artistsList_Dict, vline1List, vline2List
+def deleteConnections():
+    global artistsList_Dict, vline1List, vline2List, coordsX1, coordsX2
 
     for objectId in artistsList_Dict.keys():
         for artist in artistsList_Dict[objectId]:
@@ -232,6 +235,13 @@ def drawConnections():
     artistsList_Dict = {}
     vline1List = []
     vline2List = []
+
+    coordsX1 = []
+    coordsX2 = []
+
+#=========================================================================================
+def drawConnections():
+    global artistsList_Dict, vline1List, vline2List, coordsX1, coordsX2
 
     for i in range(len(coordsX1)):
         coordX1 = coordsX1[i]
@@ -250,12 +260,8 @@ def drawConnections():
     setInterp()
 
 #=========================================================================================
-def setInterp():
-    global x2Interp, curve2Interp, second_xaxis
-
-    if len(vline1List) <= 1:
-        print("Warning: interpolation needs a minimum of 2 pointers")
-        return
+def deleteInterp():
+    global x2Interp, curve2Interp, second_xaxis, showInterp
 
     if curve2Interp:
         curve2Interp.remove()
@@ -263,6 +269,21 @@ def setInterp():
         x2Interp = []
         second_xaxis.remove()
         second_xaxis = None
+
+#=========================================================================================
+def setInterp():
+    global x2Interp, curve2Interp, second_xaxis, coordsX1, coordsX2, showInterp
+
+    if len(vline1List) <= 1:
+        print("Warning: interpolation needs a minimum of 2 pointers")
+        if showInterp:
+            showInterp = False
+            displayInterp(showInterp)
+        return
+
+    deleteInterp()
+    coordsX1 = sorted([float(line.get_xdata()[0]) for line in vline1List])
+    coordsX2 = sorted([float(line.get_xdata()[0]) for line in vline2List])
 
     f_1to2 = interpolate.interp1d(coordsX1, coordsX2, kind=kindInterpolation, fill_value="extrapolate")
     f_2to1 = interpolate.interp1d(coordsX2, coordsX1, kind=kindInterpolation, fill_value="extrapolate")
@@ -276,18 +297,17 @@ def setInterp():
 #=========================================================================================
 def displayInterp(visible):
 
-    if curve2Interp: 
-        if visible:
-            curve2Interp.set_visible(True)
+    if visible:
             axsInterp.set_visible(True)
-        else:
-            curve2Interp.set_visible(False)
+            if curve2Interp: curve2Interp.set_visible(True)
+    else:
             axsInterp.set_visible(False)
-        axsInterp.figure.canvas.draw()
+            if curve2Interp: curve2Interp.set_visible(False)
+    axsInterp.figure.canvas.draw()
 
 #=========================================================================================
 def onPick(event):
-    global vline1, vline2, artistsList_Dict, vline1List, vline2List, coordsX1, coordsX2
+    global vline1, vline2, artistsList_Dict, vline1List, vline2List
 
     artistLabel = event.artist.get_label()
     #print(artistLabel)
@@ -303,10 +323,9 @@ def onPick(event):
                 if artist in vline2List:
                     vline2List.remove(artist)
             del artistsList_Dict[objectId]
-            coordsX1 = sorted([float(line.get_xdata()[0]) for line in vline1List])
-            coordsX2 = sorted([float(line.get_xdata()[0]) for line in vline2List])
             setInterp()
             displayInterp(showInterp)
+            fig.canvas.draw()
 
     #-----------------------------------------------
     elif artistLabel == 'curve':
@@ -405,15 +424,14 @@ def updateAxes():
     axs[1].set_xlim(xlim_axs1)
     axs[0].set_ylim(ylim_axs0)
     axs[1].set_ylim(ylim_axs1)
-    fig.canvas.draw()
     
     updateConnections()
-    fig.canvas.draw()
     displayInterp(showInterp)
+    fig.canvas.draw()
 
 #=========================================================================================
 def onKeyPress(event):
-    global key_x, key_shift, key_control, vline1, vline2, coordsX1, coordsX2
+    global key_x, key_shift, key_control, vline1, vline2
     global showInterp
 
     sys.stdout.flush()
@@ -443,6 +461,14 @@ def onKeyPress(event):
         key_x = True
 
     #-----------------------------------------------
+    if event.key == 'X':
+        deleteConnections()
+        deleteInterp()
+        showInterp = False
+        displayInterp(showInterp)
+        fig.canvas.draw()
+
+    #-----------------------------------------------
     if event.key == 'c':
         if vline1 != None and vline2 != None :
             coordX1 = float(vline1.get_xdata()[0])
@@ -460,11 +486,11 @@ def onKeyPress(event):
             vline2List.append(vline2)
             vline1 = None
             vline2 = None
-            coordsX1 = sorted([float(line.get_xdata()[0]) for line in vline1List])
-            coordsX2 = sorted([float(line.get_xdata()[0]) for line in vline2List])
         
-            setInterp()
-            displayInterp(showInterp)
+            if len(vline1List) >= 2: 
+                setInterp()
+                displayInterp(showInterp)
+            fig.canvas.draw()
 
     #-----------------------------------------------
     elif event.key == 'h':
@@ -511,6 +537,8 @@ def onKeyPress(event):
     #-----------------------------------------------
     elif event.key == 'i':
 
+        if not coordsX1: return
+
         counterFilename = 1
         fileNameTemplate = 'pointersFile_lineage_{}.csv'
         while os.path.isfile(fileNameTemplate.format("%02d" %counterFilename)):
@@ -526,6 +554,7 @@ def onKeyPress(event):
     #-----------------------------------------------
     elif event.key == 'z':
         showInterp = not showInterp
+        setInterp()
         displayInterp(showInterp)
 
     #-----------------------------------------------
@@ -539,7 +568,7 @@ def onKeyPress(event):
             points1.set_visible(True)
         elif event.inaxes == axs[1]:
             points2.set_visible(True)
-        plt.draw()
+        fig.canvas.draw()
 
 #=========================================================================================
 def onKeyRelease(event):
@@ -562,7 +591,7 @@ def onKeyRelease(event):
             points1.set_visible(False)
         elif event.inaxes == axs[1]:
             points2.set_visible(False)
-        plt.draw()
+        fig.canvas.draw()
 
 #=========================================================================================
 def onPress(event):
@@ -599,7 +628,7 @@ def onMotion(event):
         press = None
         linecursor1.set_visible(False)
         linecursor2.set_visible(False)
-        plt.draw()
+        fig.canvas.draw()
         return
 
     #-----------------------------------------------

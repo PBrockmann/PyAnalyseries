@@ -79,6 +79,9 @@ Press 'p' key
 Press 'i' key
     Save pointers to csv file
 -------------------------------------------------------------------------------
+Press 'X' key
+    Delete all pointers and connections 
+-------------------------------------------------------------------------------
 Press 'z' key
     Display/Hide interpolated curve
 -------------------------------------------------------------------------------
