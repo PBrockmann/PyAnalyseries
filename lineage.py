@@ -290,6 +290,7 @@ def setInterp():
     second_xaxis = axsInterp.secondary_xaxis('top', functions=(f_1to2, f_2to1))
     second_xaxis.tick_params(labelrotation=30)
     second_xaxis.set_xlabel(x2Name)
+    plt.setp(second_xaxis.get_xticklabels(), horizontalalignment='left')
 
     x2Interp = f_2to1(x2)
     curve2Interp, = axsInterp.plot(x2Interp, y2, color=curve2Color, alpha=0.8, linewidth=curveWidth)
@@ -473,10 +474,13 @@ def onKeyPress(event):
         if vline1 != None and vline2 != None :
             coordX1 = float(vline1.get_xdata()[0])
             coordX2 = float(vline2.get_xdata()[0])
+            coordsX1 = sorted([float(line.get_xdata()[0]) for line in vline1List])
+            coordsX2 = sorted([float(line.get_xdata()[0]) for line in vline2List])
             # Check positions
             if np.searchsorted(coordsX1, coordX1) != np.searchsorted(coordsX2, coordX2):
                 print("Error: Connection not possible because it would cross existing connections") 
                 return
+            
             connect = ConnectionPatch(color=pointerColor, alpha=0.5, linewidth=1, picker=5, clip_on=True, label='connection',
                         xyA=(coordX1, axs[0].get_ylim()[0]), coordsA=axs[0].transData,
                         xyB=(coordX2, axs[1].get_ylim()[1]), coordsB=axs[1].transData)
