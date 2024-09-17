@@ -275,7 +275,7 @@ def setInterp():
     global x2Interp, curve2Interp, second_xaxis, coordsX1, coordsX2, showInterp
 
     if len(vline1List) <= 1:
-        print("Warning: interpolation needs a minimum of 2 pointers")
+        print("Warning: interpolation needs a minimum of 2 connections")
         if showInterp:
             showInterp = False
             displayInterp(showInterp)
