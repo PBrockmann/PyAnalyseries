@@ -149,6 +149,7 @@ key_control = False
 vline1 = None
 vline2 = None
 press = None
+press_origin = None
 cur_xlim = None
 cur_ylim = None
 xpress = None
@@ -565,17 +566,19 @@ def onKeyRelease(event):
 
 #=========================================================================================
 def onPress(event):
-    global cur_xlim, cur_ylim, press, xpress, ypress, mousepress
+    global cur_xlim, cur_ylim, press, xpress, ypress, mousepress, press_origin
 
     if event.inaxes not in axs: return
 
     #-----------------------------------------------
     if event.button == 3:
         mousepress = 'right'
+        press_origin = event.inaxes
 
     #-----------------------------------------------
     elif event.button == 1:
         mousepress = 'left'
+        press_origin = event.inaxes
 
     cur_xlim = event.inaxes.get_xlim()
     cur_ylim = event.inaxes.get_ylim()
@@ -612,6 +615,10 @@ def onMotion(event):
 
     #-----------------------------------------------
     if press is None: return
+
+    #-----------------------------------------------
+    # When mousepress has been done not in the listen axe
+    if event.inaxes.get_label() != press_origin.get_label(): return
 
     #-----------------------------------------------
     if mousepress == 'left':
@@ -659,6 +666,7 @@ axs[0].set_xlabel(x1Name)
 axs[0].set_ylabel(y1Name)
 axs[0].patch.set_alpha(0)
 axs[0].autoscale()
+axs[0].set_label('curve1')
 
 #=========================================================================================
 curve2, = axs[1].plot(x2, y2, color=curve2Color, picker=True, pickradius=20, linewidth=curveWidth, label='curve')
@@ -669,6 +677,7 @@ axs[1].grid(visible=True, which='major', color='lightgray', linestyle='dashed', 
 axs[1].set_xlabel(x2Name)
 axs[1].set_ylabel(y2Name)
 axs[1].autoscale()
+axs[1].set_label('curve2')
 
 #=========================================================================================
 axsInterp = axs[0].twinx()
@@ -676,6 +685,7 @@ axsInterp.sharey(axs[1])
 axsInterp.set_ylabel(y2Name)
 axsInterp.set_zorder(-10)
 axsInterp.set_visible(showInterp)
+axsInterp.set_label('curve2Interp')
 
 #=========================================================================================
 fig.canvas.mpl_connect('key_press_event', onKeyPress)
