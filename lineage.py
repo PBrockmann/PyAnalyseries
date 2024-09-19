@@ -266,7 +266,7 @@ def deleteInterp():
     if curve2Interp:
         curve2Interp.remove()
         curve2Interp = None
-        x2Interp = []
+        x2Interp = None
         second_xaxis.remove()
         second_xaxis = None
 
@@ -474,10 +474,11 @@ def onKeyPress(event):
         if vline1 != None and vline2 != None :
             coordX1 = float(vline1.get_xdata()[0])
             coordX2 = float(vline2.get_xdata()[0])
-            coordsX1 = sorted([float(line.get_xdata()[0]) for line in vline1List])
-            coordsX2 = sorted([float(line.get_xdata()[0]) for line in vline2List])
+            # current coordsX1, coordsX2. Will be defined later from setInterp
+            coordsX1_cur = sorted([float(line.get_xdata()[0]) for line in vline1List])
+            coordsX2_cur = sorted([float(line.get_xdata()[0]) for line in vline2List])
             # Check positions
-            if np.searchsorted(coordsX1, coordX1) != np.searchsorted(coordsX2, coordX2):
+            if np.searchsorted(coordsX1_cur, coordX1) != np.searchsorted(coordsX2_cur, coordX2):
                 print("Error: Connection not possible because it would cross existing connections") 
                 return
             
@@ -504,7 +505,7 @@ def onKeyPress(event):
     elif event.key == 'p':
 
         counterFilename = 1
-        fileNameTemplate = 'pdfFile_lineage_{}.pdf'
+        fileNameTemplate = 'saveLineage_pdfFile_{}.pdf'
         while os.path.isfile(fileNameTemplate.format("%02d" %counterFilename)):
             counterFilename += 1
         fileName = fileNameTemplate.format("%02d" %counterFilename)
@@ -512,7 +513,7 @@ def onKeyPress(event):
         print("Info: saved pdf in file ", fileName)
 
         counterFilename = 1
-        fileNameTemplate = 'pngFile_lineage_{}.png'
+        fileNameTemplate = 'saveLineage_pngFile_{}.png'
         while os.path.isfile(fileNameTemplate.format("%02d" %counterFilename)):
             counterFilename += 1
         fileName = fileNameTemplate.format("%02d" %counterFilename)
@@ -523,7 +524,7 @@ def onKeyPress(event):
     elif event.key == 's':
 
         counterFilename = 1
-        fileNameTemplate = 'dataFile_lineage_{}.xlsx'
+        fileNameTemplate = 'saveLineage_dataFile_{}.xlsx'
         while os.path.isfile(fileNameTemplate.format("%02d" %counterFilename)):
             counterFilename += 1
         fileName = fileNameTemplate.format("%02d" %counterFilename)
@@ -544,7 +545,7 @@ def onKeyPress(event):
         if not coordsX1: return
 
         counterFilename = 1
-        fileNameTemplate = 'pointersFile_lineage_{}.csv'
+        fileNameTemplate = 'saveLineage_pointersFile_{}.csv'
         while os.path.isfile(fileNameTemplate.format("%02d" %counterFilename)):
             counterFilename += 1
         fileName = fileNameTemplate.format("%02d" %counterFilename)
