@@ -19,7 +19,7 @@ Based on:
 
 ```
 ####################################################################################################################
-Usage:  lineage.py [-h]
+Usage:  PyAnalyseries_v0.9.py [-h]
         [-p filePointers]
         [-k kindInterpolation]
         fileCSV x1Name y1Name x2Name y2Name
@@ -33,7 +33,7 @@ Options:
                 Interpolation kind 'linear' or 'quadratic' (default 'linear')
 
 Examples:
-        lineage.py -p pointers2.csv testFile.csv 'Time (ka)' 'Stack Benthic d18O (per mil)' 'depthODP849cm' 'd18Oforams-b'
+        PyAnalyseries_v0.9.py -p pointers2.csv testFile.csv 'Time (ka)' 'Stack Benthic d18O (per mil)' 'depthODP849cm' 'd18Oforams-b'
 ```
 
 ## Interactions 
