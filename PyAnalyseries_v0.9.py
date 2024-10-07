@@ -30,9 +30,9 @@ pointerColor = 'blue'
 curveWidth = 0.8 
 
 #=========================================================================================
-usage = """
+usage = f"""
 ####################################################################################################################
-Usage:  PyAnalyseries_v0.9.py [-h]
+Usage:  PyAnalyseries_{version}.py [-h]
         [-p filePointers]
         [-k kindInterpolation]
         fileCSV x1Name y1Name x2Name y2Name
@@ -46,7 +46,7 @@ Options:
                 Interpolation kind 'linear' or 'quadratic' (default 'linear')
 
 Examples:
-        PyAnalyseries_v0.9.py -p pointers2.csv testFile.csv 'Time (ka)' 'Stack Benthic d18O (per mil)' 'depthODP849cm' 'd18Oforams-b'
+        PyAnalyseries_{version}.py -p pointers2.csv testFile.csv 'Time (ka)' 'Stack Benthic d18O (per mil)' 'depthODP849cm' 'd18Oforams-b'
 """
 
 #=========================================================================================
