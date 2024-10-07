@@ -715,7 +715,7 @@ def on_mouse_scroll(event):
 readData(fileData, x1Name, y1Name, x2Name, y2Name)
 
 #=========================================================================================
-fig, axs = plt.subplots(2, 1, figsize=(10,8), num='Lineage')
+fig, axs = plt.subplots(2, 1, figsize=(10,8), num='PyAnalyseries ' + version)
 
 #=========================================================================================
 curve1, = axs[0].plot(x1, y1, color=curve1Color, picker=True, pickradius=20, linewidth=curveWidth, label='curve') 
