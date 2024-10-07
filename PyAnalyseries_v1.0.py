@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 from matplotlib.patches import ConnectionPatch
 from matplotlib.lines import Line2D
+from matplotlib.axis import XAxis, YAxis
 import matplotlib.patches as patches
 from scipy import interpolate
 
@@ -23,16 +24,16 @@ mpl.rcParams['axes.labelsize'] = 10
 mpl.rcParams['xtick.labelsize'] = 8
 mpl.rcParams['ytick.labelsize'] = 8
 
-version = "v0.9"
+version = "v1.0"
 curve1Color = 'red'
 curve2Color = 'forestgreen'
 pointerColor = 'blue'
 curveWidth = 0.8 
 
 #=========================================================================================
-usage = """
+usage = f"""
 ####################################################################################################################
-Usage:  PyAnalyseries_v0.9.py [-h]
+Usage:  PyAnalyseries_{version}.py [-h]
         [-p filePointers]
         [-k kindInterpolation]
         fileCSV x1Name y1Name x2Name y2Name
@@ -46,7 +47,7 @@ Options:
                 Interpolation kind 'linear' or 'quadratic' (default 'linear')
 
 Examples:
-        PyAnalyseries_v0.9.py -p pointers2.csv testFile.csv 'Time (ka)' 'Stack Benthic d18O (per mil)' 'depthODP849cm' 'd18Oforams-b'
+        PyAnalyseries_{version}.py -p pointers2.csv testFile.csv 'Time (ka)' 'Stack Benthic d18O (per mil)' 'depthODP849cm' 'd18Oforams-b'
 """
 
 #=========================================================================================
@@ -76,11 +77,11 @@ Hold down x key while right click on a connection
 Use wheel mouse on a plot
     Zoom in/out in the plot
 -------------------------------------------------------------------------------
-Hold down left key mouse on a plot
-    Pan in the plot
+Use wheel mouse on axis
+    Zoom in/out on horizontal/vertical axis
 -------------------------------------------------------------------------------
-Hold down left key mouse on a plot
-    Expand horizontal/vertical axis depending horizontal/vertical movement
+Hold down right key mouse on a plot
+    Pan in the plot
 -------------------------------------------------------------------------------
 Press 'a' key on a plot
     Plot the 2 curves with an automatic vertical range and a horizontal range according to pointers
@@ -307,7 +308,7 @@ def displayInterp(visible):
     axsInterp.figure.canvas.draw()
 
 #=========================================================================================
-def onPick(event):
+def on_mouse_pick(event):
     global vline1, vline2, artistsList_Dict, vline1List, vline2List
 
     artistLabel = event.artist.get_label()
@@ -363,33 +364,6 @@ def onPick(event):
             fig.canvas.draw()
 
 #=========================================================================================
-def zoom(event):
-    
-    if event.inaxes in axs:
-        scale_zoom = 1.2
-        cur_xlim = event.inaxes.get_xlim()
-        cur_ylim = event.inaxes.get_ylim()
-        xdata = event.xdata # get event x location
-        ydata = event.ydata # get event y location
-        if event.button == 'up':                        # zoom in
-            scale_factor = 1 / scale_zoom
-        elif event.button == 'down':                    # zoom out
-            scale_factor = scale_zoom
-        else:
-            # deal with something that should never happen
-            scale_factor = 1
-        new_width = (cur_xlim[1] - cur_xlim[0]) * scale_factor
-        new_height = (cur_ylim[1] - cur_ylim[0]) * scale_factor
-        relx = (cur_xlim[1] - xdata)/(cur_xlim[1] - cur_xlim[0])
-        rely = (cur_ylim[1] - ydata)/(cur_ylim[1] - cur_ylim[0])
-        
-        event.inaxes.set_xlim(xdata - new_width * (1-relx), xdata + new_width * (relx))
-        event.inaxes.set_ylim(ydata - new_height * (1-rely), ydata + new_height * (rely))
-        
-        updateConnections()
-        event.inaxes.figure.canvas.draw()
-    
-#=========================================================================================
 def updateAxes():
     # Full vertical range on both plots, horizontal range set from pointers 
     
@@ -431,7 +405,7 @@ def updateAxes():
     fig.canvas.draw()
 
 #=========================================================================================
-def onKeyPress(event):
+def on_key_press(event):
     global key_x, key_shift, key_control, vline1, vline2
     global showInterp
 
@@ -576,7 +550,7 @@ def onKeyPress(event):
         fig.canvas.draw()
 
 #=========================================================================================
-def onKeyRelease(event):
+def on_key_release(event):
     global key_x, key_shift, key_control
 
     sys.stdout.flush()
@@ -599,18 +573,13 @@ def onKeyRelease(event):
         fig.canvas.draw()
 
 #=========================================================================================
-def onPress(event):
+def on_mouse_press(event):
     global cur_xlim, cur_ylim, press, xpress, ypress, mousepress, press_origin
 
     if event.inaxes not in axs: return
 
-    #-----------------------------------------------
-    if event.button == 3:
-        mousepress = 'right'
-        press_origin = event.inaxes
-
-    #-----------------------------------------------
-    elif event.button == 1:
+    mousepress = None
+    if event.button == 1:
         mousepress = 'left'
         press_origin = event.inaxes
 
@@ -620,12 +589,12 @@ def onPress(event):
     xpress, ypress = press
 
 #=========================================================================================
-def onRelease(event):
+def on_mouse_release(event):
     global press
     press = None
 
 #=========================================================================================
-def onMotion(event):
+def on_mouse_motion(event):
     global cur_xlim, cur_ylim, press
 
     #-----------------------------------------------
@@ -665,23 +634,81 @@ def onMotion(event):
         event.inaxes.set_xlim(cur_xlim[0], cur_xlim[1])
         event.inaxes.set_ylim(cur_ylim[0], cur_ylim[1])
 
-    #-----------------------------------------------
-    elif mousepress == 'right':
-        linecursor1.set_visible(False)
-        linecursor2.set_visible(False)
-        dx = event.xdata - xpress
-        dy = event.ydata - ypress
-        zoomFactor = 1.2 
-        event.inaxes.set_xlim(cur_xlim[0] + dx * zoomFactor, cur_xlim[1] - dx * zoomFactor)
-        event.inaxes.set_ylim(cur_ylim[0] + dy * zoomFactor, cur_ylim[1] - dy * zoomFactor)
-       
-        if event.inaxes == axs[1]:
-            axsInterp.set_ylim(cur_ylim[0] + dy * zoomFactor, cur_ylim[1] - dy * zoomFactor)
-
-    updateConnections()
-    event.inaxes.figure.canvas.draw()
-    event.inaxes.figure.canvas.flush_events()
+        updateConnections()
+        event.inaxes.figure.canvas.draw()
+        event.inaxes.figure.canvas.flush_events()
     
+#=========================================================================================
+def detect_artist(event):
+    """Detect which artist the scroll event occurred on, including axis ticks."""
+    for ax in fig.axes:
+        # First check if the event occurred on the X or Y axis ticks
+        if ax.xaxis.contains(event)[0]:
+            return ax.xaxis  # Detected XAxis
+        if ax.yaxis.contains(event)[0]:
+            return ax.yaxis  # Detected YAxis
+        
+        # Now check if the event occurred inside the Axes itself
+        if ax.contains(event)[0]:
+            return ax  # Detected Axes itself
+    return None
+
+#=========================================================================================
+def on_mouse_scroll(event):
+
+    """Callback for scroll event to detect artist on the correct axis."""
+    artist = detect_artist(event)  # Detect the artist in the entire figure
+    
+    if artist is None:
+        print("No artist detected under the scroll event.")
+        return
+    
+    scale_factor = 0.9 if event.button == 'up' else 1.1
+    
+    if isinstance(artist, XAxis):
+        # No need to check event.xdata, just zoom the X axis
+        ax = artist.axes
+        cur_xlim = ax.get_xlim()
+        xdata = (cur_xlim[0] + cur_xlim[1]) / 2
+        new_xlim = [xdata - (xdata - cur_xlim[0]) * scale_factor,
+                    xdata + (cur_xlim[1] - xdata) * scale_factor]
+        ax.set_xlim(new_xlim)
+        #print(f"Zoomed X axis in axis '{ax.get_label()}'")
+    
+    elif isinstance(artist, YAxis):
+        # No need to check event.ydata, just zoom the Y axis
+        ax = artist.axes
+        cur_ylim = ax.get_ylim()
+        ydata = (cur_ylim[0] + cur_ylim[1]) / 2
+        new_ylim = [ydata - (ydata - cur_ylim[0]) * scale_factor,
+                    ydata + (cur_ylim[1] - ydata) * scale_factor]
+        ax.set_ylim(new_ylim)
+        #print(f"Zoomed Y axis in axis '{ax.get_label()}'")
+    
+    elif isinstance(artist, plt.Axes):
+        # Zoom on both axes (X and Y) if the scroll happens inside the Axes
+        ax = artist
+        cur_xlim = ax.get_xlim()
+        cur_ylim = ax.get_ylim()
+        xdata = event.xdata
+        ydata = event.ydata
+    
+        # Only zoom in the plot area, hence the need to check xdata and ydata
+        if xdata is None or ydata is None:
+            return  # Prevent NoneType error if data coords are unavailable
+    
+        new_xlim = [xdata - (xdata - cur_xlim[0]) * scale_factor,
+                    xdata + (cur_xlim[1] - xdata) * scale_factor]
+        new_ylim = [ydata - (ydata - cur_ylim[0]) * scale_factor,
+                    ydata + (cur_ylim[1] - ydata) * scale_factor]
+        ax.set_xlim(new_xlim)
+        ax.set_ylim(new_ylim)
+        #print(f"Zoomed both axes in axis '{ax.get_label()}'")
+    
+    updateConnections()
+    ax.figure.canvas.draw()
+
+
 ##########################################################################################
 
 #=========================================================================================
@@ -701,6 +728,8 @@ axs[0].set_ylabel(y1Name)
 axs[0].patch.set_alpha(0)
 axs[0].autoscale()
 axs[0].set_label('curve1')
+axs[0].xaxis.pickradius = 50
+axs[0].yaxis.pickradius = 50
 
 #=========================================================================================
 curve2, = axs[1].plot(x2, y2, color=curve2Color, picker=True, pickradius=20, linewidth=curveWidth, label='curve')
@@ -712,6 +741,8 @@ axs[1].set_xlabel(x2Name)
 axs[1].set_ylabel(y2Name)
 axs[1].autoscale()
 axs[1].set_label('curve2')
+axs[1].xaxis.pickradius = 50
+axs[1].yaxis.pickradius = 50
 
 #=========================================================================================
 axsInterp = axs[0].twinx()
@@ -722,13 +753,13 @@ axsInterp.set_visible(showInterp)
 axsInterp.set_label('curve2Interp')
 
 #=========================================================================================
-fig.canvas.mpl_connect('key_press_event', onKeyPress)
-fig.canvas.mpl_connect('key_release_event', onKeyRelease)
-fig.canvas.mpl_connect('button_press_event',onPress)
-fig.canvas.mpl_connect('button_release_event',onRelease)
-fig.canvas.mpl_connect('motion_notify_event',onMotion)
-fig.canvas.mpl_connect('pick_event', onPick)
-fig.canvas.mpl_connect('scroll_event', zoom)
+fig.canvas.mpl_connect('key_press_event', on_key_press)
+fig.canvas.mpl_connect('key_release_event', on_key_release)
+fig.canvas.mpl_connect('button_press_event', on_mouse_press)
+fig.canvas.mpl_connect('button_release_event', on_mouse_release)
+fig.canvas.mpl_connect('scroll_event', on_mouse_scroll)
+fig.canvas.mpl_connect('motion_notify_event',on_mouse_motion)
+fig.canvas.mpl_connect('pick_event', on_mouse_pick)
 
 #=========================================================================================
 if filePointers:

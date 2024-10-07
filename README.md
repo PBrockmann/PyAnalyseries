@@ -19,7 +19,7 @@ Based on:
 
 ```
 ####################################################################################################################
-Usage:  PyAnalyseries_v0.9.py [-h]
+Usage:  PyAnalyseries_v1.0.py [-h]
         [-p filePointers]
         [-k kindInterpolation]
         fileCSV x1Name y1Name x2Name y2Name
@@ -33,12 +33,15 @@ Options:
                 Interpolation kind 'linear' or 'quadratic' (default 'linear')
 
 Examples:
-        PyAnalyseries_v0.9.py -p pointers2.csv testFile.csv 'Time (ka)' 'Stack Benthic d18O (per mil)' 'depthODP849cm' 'd18Oforams-b'
+        PyAnalyseries_v1.0.py -p pointers2.csv testFile.csv 'Time (ka)' 'Stack Benthic d18O (per mil)' 'depthODP849cm' 'd18Oforams-b'
 ```
 
 ## Interactions 
 
 ```
+####################################################################################################################
+Interactions:
+
 -------------------------------------------------------------------------------
 Press 'h'
     Display this help 
@@ -61,11 +64,11 @@ Hold down x key while right click on a connection
 Use wheel mouse on a plot
     Zoom in/out in the plot
 -------------------------------------------------------------------------------
+Use wheel mouse on axis
+    Zoom in/out on horizontal/vertical axis
+-------------------------------------------------------------------------------
 Hold down right key mouse on a plot
     Pan in the plot
--------------------------------------------------------------------------------
-Hold down left key mouse on a plot
-    Expand horizontal/vertical axis depending horizontal/vertical movement
 -------------------------------------------------------------------------------
 Press 'a' key on a plot
     Plot the 2 curves with an automatic vertical range and a horizontal range according to pointers
