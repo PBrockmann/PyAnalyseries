@@ -1,0 +1,797 @@
+#!/usr/bin/env python
+
+#=========================================================================================
+# Author: Patrick Brockmann CEA/DRF/LSCE - October 2024
+#=========================================================================================
+
+import sys
+import os 
+import re 
+import numpy as np
+import pandas as pd
+
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QTabWidget, QWidget, QVBoxLayout,
+    QLabel, QStatusBar, QSizePolicy, QTableWidget, QTableWidgetItem,
+    QAction, QMessageBox, QFileDialog, QColorDialog, QDialog, QTextBrowser,
+    QPushButton
+)
+from PyQt5.QtCore import Qt
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from PyQt5.QtGui import QColor
+
+import matplotlib.pyplot as plt
+from matplotlib.patches import ConnectionPatch
+from matplotlib.lines import Line2D
+from matplotlib.axis import XAxis, YAxis
+import matplotlib.patches as patches
+
+from scipy import interpolate
+
+from openpyxl.utils import get_column_letter
+
+#========================================================================================
+version = 'v2.2'
+curve1Color = 'darkmagenta'
+curve2Color = 'forestgreen'
+pointerColor = 'blue'
+curveWidth = 0.8
+
+#========================================================================================
+detached_windows = {}
+tableDataWidget = None
+tablePointersWidget = None
+
+#========================================================================================
+def create_Data_tab():
+    global tableDataWidget
+
+    widget = QWidget()
+    layout = QVBoxLayout()
+
+    tableDataWidget = QTableWidget()
+    tableDataWidget.setEditTriggers(QTableWidget.NoEditTriggers)
+
+    layout.addWidget(tableDataWidget)
+    widget.setLayout(layout)
+    return widget
+
+#========================================================================================
+def create_Pointers_tab():
+    global tablePointersWidget
+
+    widget = QWidget()
+    layout = QVBoxLayout()
+
+    tablePointersWidget = QTableWidget()
+    tablePointersWidget.setEditTriggers(QTableWidget.NoEditTriggers)
+    tablePointersWidget.setRowCount(0)
+    tablePointersWidget.setColumnCount(2)
+    tablePointersWidget.setHorizontalHeaderLabels(["Coordinates X1", "Coordinates X2"])
+    tablePointersWidget.horizontalHeader().setDefaultAlignment(Qt.AlignRight)
+    tablePointersWidget.setColumnWidth(0, 200)
+    tablePointersWidget.setColumnWidth(1, 200)
+
+    layout.addWidget(tablePointersWidget)
+    widget.setLayout(layout)
+    return widget
+
+#========================================================================================
+def create_Plots_tab():
+    global fig, axs 
+
+    """Crée un onglet avec un tracé Matplotlib."""
+    widget = QWidget()
+    layout = QVBoxLayout()
+
+    #---------------------------------------------------------
+    fig, axs = plt.subplots(2, 1)
+    fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1, wspace=0, hspace=0.2)
+    fig.set_visible(False)
+
+    canvas = FigureCanvas(fig)
+    canvas.mpl_connect('button_press_event', on_mouse_press)
+    canvas.mpl_connect('button_release_event', on_mouse_release)
+    canvas.mpl_connect('scroll_event', on_mouse_scroll)
+    canvas.mpl_connect('motion_notify_event', on_mouse_motion)
+    canvas.mpl_connect('pick_event', on_mouse_pick)
+    canvas.mpl_connect('key_press_event', on_key_press)
+    canvas.mpl_connect('key_release_event', on_key_release)
+
+    #---------------------------------------------------------
+    canvas.setFocusPolicy(Qt.ClickFocus)
+    canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+    layout.addWidget(canvas)
+
+    widget.setLayout(layout)
+    return widget
+
+#========================================================================================
+fig = None 
+axs = []
+curve1 = None
+curve2 = None
+points1 = None
+points2 = None
+curve2Interp = None
+vline1 = None
+vline2 = None
+x1 = []
+y1 = [] 
+x2 = []
+y2 = [] 
+x2Interp = [] 
+showInterp = False
+linecursor1 = None
+linecursor2 = None
+x1Name = None
+y1Name = None 
+x2Name = None
+y2Name = None
+artistsList_Dict = {} 
+vline1List = []
+vline2List = []
+coordsX1 = []
+coordsX2 = []
+
+press = None
+cur_xlim = None
+cur_ylim = None
+xpress = None
+ypress = None
+mousepress = None
+press_origin = None
+artist_picked = None
+key_x = None
+key_shift = None
+key_control = None
+
+#=========================================================================================
+def updatePlots():
+    global fig, axs
+    global curve1, curve2, points1, points2, linecursor1, linecursor2
+
+    fig.set_visible(True)
+
+    axs[0].clear()
+    axs[1].clear()
+
+    #---------------------------------------------------------
+    curve1, = axs[0].plot(x1, y1, color=curve1Color, picker=True, pickradius=20, linewidth=curveWidth, label='curve')
+    points1 = axs[0].scatter(x1, y1, s=5, marker='o', color=curve1Color, picker=True, pickradius=20, label='points')
+    points1.set_visible(False)
+    linecursor1 = axs[0].axvline(color='k', alpha=0.25, linewidth=1)
+    axs[0].grid(visible=True, which='major', color='lightgray', linestyle='dashed', linewidth=0.5)
+    axs[0].set_xlabel(x1Name)
+    axs[0].set_ylabel(y1Name)
+    axs[0].patch.set_alpha(0)
+    axs[0].autoscale()
+    axs[0].set_label('curve1')
+    axs[0].xaxis.pickradius = 50
+    axs[0].yaxis.pickradius = 50
+    
+    #---------------------------------------------------------
+    curve2, = axs[1].plot(x2, y2, color=curve2Color, picker=True, pickradius=20, linewidth=curveWidth, label='curve')
+    points2 = axs[1].scatter(x2, y2, s=5, marker='o', color=curve2Color, picker=True, pickradius=20, label='points')
+    points2.set_visible(False)
+    linecursor2 = axs[1].axvline(color='k', alpha=0.25, linewidth=1)
+    axs[1].grid(visible=True, which='major', color='lightgray', linestyle='dashed', linewidth=0.5)
+    axs[1].set_xlabel(x2Name)
+    axs[1].set_ylabel(y2Name)
+    axs[1].autoscale()
+    axs[1].set_label('curve2')
+    axs[1].xaxis.pickradius = 50
+    axs[1].yaxis.pickradius = 50
+    
+    #---------------------------------------------------------
+    axsInterp = axs[0].twinx()
+    axsInterp.sharey(axs[1])
+    axsInterp.set_ylabel(y2Name)
+    axsInterp.set_zorder(-10)
+    axsInterp.set_visible(showInterp)
+    axsInterp.set_label('curve2Interp')
+
+    #---------------------------------------------------------
+    fig.canvas.draw()
+
+#=========================================================================================
+def loadData():
+    global x1, y1, x2, y2, x1Name, y1Name, x2Name, y2Name
+    global coordsX1, coordsX2
+    global tableDataWidget
+
+    tabs.setCurrentIndex(0)
+
+    fileName, _ = QFileDialog.getOpenFileName(main_window, "Open Excel file", "", "Excel files (*.xlsx);;All files (*)")
+    if not fileName: 
+        displayStatusMessage("Data", "Cannot open file", 5000)
+        return
+
+    dataframe = pd.read_excel(fileName)
+    #x1Name = 'Time (ka)'
+    #y1Name = 'Stack Benthic d18O (per mil)'
+    #x2Name = 'depthODP849cm'
+    #y2Name = 'd18Oforams-b'
+    x1Name, y1Name, x2Name, y2Name = dataframe.columns[0:4]    # First 4 columns
+    x1 = dataframe[x1Name].to_numpy()
+    y1 = dataframe[y1Name].to_numpy()
+    x2 = dataframe[x2Name].to_numpy()
+    y2 = dataframe[y2Name].to_numpy()
+
+    tableDataWidget.clearContents()
+    tableDataWidget.setRowCount(dataframe.shape[0])
+    tableDataWidget.setColumnCount(dataframe.shape[1])
+    tableDataWidget.setHorizontalHeaderLabels(dataframe.columns)
+    tableDataWidget.resizeColumnsToContents()
+
+    for row in range(dataframe.shape[0]):
+        for col in range(dataframe.shape[1]):
+            value = str(dataframe.iat[row, col])
+            tableDataWidget.setItem(row, col, QTableWidgetItem(value))
+            item = tableDataWidget.item(row, col)
+            if col % 2 == 0:
+                item.setBackground(QColor(250, 250, 250))
+
+    updatePlots()
+
+    try:
+        dataframe = pd.read_excel(fileName, sheet_name="Pointers")
+        coordsX1 = dataframe["Coordinates X1"].to_numpy()
+        coordsX2 = dataframe["Coordinates X2"].to_numpy()
+        displayStatusMessage("Data", "Sheetname Pointers found", 5000)
+
+       # check if arrays are monotonically increasing
+        if not (((np.diff(coordsX1) >= 0).all()) and ((np.diff(coordsX2) >= 0).all())):
+            displayStatusMessage("Data", "Error: pointer coordinates are not monotonically increasing", 5000)
+            coordsX1 = []
+            coordsX2 = []
+        else:
+            drawConnections()
+            updatePointers()
+            fig.canvas.draw()
+
+    except:
+        displayStatusMessage("Data", "No sheetname Pointers found", 5000)
+
+#=========================================================================================
+def updateConnections():
+
+    for artistsList in artistsList_Dict.values():
+        if isinstance(artistsList[0], ConnectionPatch):
+            connect = artistsList[0]
+            x1, y1 = connect.xy1
+            connect.xy1 = (x1, axs[0].get_ylim()[0])
+            x2, y2 = connect.xy2
+            connect.xy2 = (x2, axs[1].get_ylim()[1])
+            if ((axs[0].get_xlim()[0] < x1 < axs[0].get_xlim()[1]) and
+                (axs[1].get_xlim()[0] < x2 < axs[1].get_xlim()[1])):
+                connect.set_visible(True)
+            else:
+                connect.set_visible(False)
+
+#=========================================================================================
+def drawConnections():
+    global artistsList_Dict, vline1List, vline2List
+
+    for i in range(len(coordsX1)):
+        coordX1 = coordsX1[i]
+        coordX2 = coordsX2[i]
+        vline1 = axs[0].axvline(coordX1, color=pointerColor, alpha=0.5, linestyle='--', linewidth=1, label='vline')
+        vline2 = axs[1].axvline(coordX2, color=pointerColor, alpha=0.5, linestyle='--', linewidth=1, label='vline')
+        vline1List.append(vline1)
+        vline2List.append(vline2)
+        connect = ConnectionPatch(color=pointerColor, alpha=0.5, linewidth=1, picker=5, clip_on=True, label='connection',
+                    xyA=(coordX1, axs[0].get_ylim()[0]), coordsA=axs[0].transData,
+                    xyB=(coordX2, axs[1].get_ylim()[1]), coordsB=axs[1].transData)
+        fig.add_artist(connect)
+        artistsList_Dict[id(connect)] = [connect, vline1, vline2]
+
+    updateConnections()
+    #setInterp()
+
+#=========================================================================================
+def deleteConnections():
+    global artistsList_Dict, vline1List, vline2List, coordsX1, coordsX2
+
+    for objectId in artistsList_Dict.keys():
+        for artist in artistsList_Dict[objectId]:
+            artist.remove()
+    artistsList_Dict = {}
+    vline1List = []
+    vline2List = []
+
+    coordsX1 = []
+    coordsX2 = []
+
+#=========================================================================================
+def updatePointers():
+    global coordsX1, coordsX2
+    global tablePointersWidget
+
+    coordsX1 = sorted([float(line.get_xdata()[0]) for line in vline1List])
+    coordsX2 = sorted([float(line.get_xdata()[0]) for line in vline2List])
+
+    tablePointersWidget.clearContents()
+    tablePointersWidget.setRowCount(len(coordsX1))
+
+    for row in range(len(coordsX1)):
+        tablePointersWidget.setItem(row, 0, QTableWidgetItem(f'{coordsX1[row]:.4f}'))
+        tablePointersWidget.setItem(row, 1, QTableWidgetItem(f'{coordsX2[row]:.4f}'))
+        item1 = tablePointersWidget.item(row, 0)
+        item2 = tablePointersWidget.item(row, 1)
+        item1.setTextAlignment(Qt.AlignRight)
+        item2.setTextAlignment(Qt.AlignRight)
+        if row % 2 == 0: 
+            item1.setBackground(QColor(250, 250, 250))
+            item2.setBackground(QColor(250, 250, 250))
+
+    displayStatusMessage("Plots", "Pointers updated", 5000)
+
+#========================================================================================
+def on_key_press(event):
+    global key_x, key_shift, key_control, vline1, vline2, artistsList_Dict
+    global tablePointersWidget
+
+    sys.stdout.flush()
+
+    #-----------------------------------------------
+    if event.key == 'x':
+        key_x = True
+
+    #-----------------------------------------------
+    if event.key == 'X':
+        deleteConnections()
+        #deleteInterp()
+        #showInterp = False
+        #displayInterp(showInterp)
+        updatePointers()
+        displayStatusMessage("Plots", "Pointers deleted", 5000)
+        fig.canvas.draw()
+
+    #-----------------------------------------------
+    elif event.key == 'shift':
+        key_shift = True
+
+    #-----------------------------------------------
+    elif event.key == 'control':
+        key_control = True
+        if event.inaxes == axs[0]:
+            points1.set_visible(True)
+        elif event.inaxes == axs[1]:
+            points2.set_visible(True)
+        fig.canvas.draw()
+
+    #-----------------------------------------------
+    if event.key == 'c':
+        if vline1 != None and vline2 != None :
+            coordX1 = float(vline1.get_xdata()[0])
+            coordX2 = float(vline2.get_xdata()[0])
+            # current coordsX1, coordsX2. Will be defined later from setInterp
+            coordsX1_cur = sorted([float(line.get_xdata()[0]) for line in vline1List])
+            coordsX2_cur = sorted([float(line.get_xdata()[0]) for line in vline2List])
+            # Check positions
+            if np.searchsorted(coordsX1_cur, coordX1) != np.searchsorted(coordsX2_cur, coordX2):
+                print("Error: Connection not possible because it would cross existing connections")
+                displayStatusMessage("Plots", "Error: Connection not possible because it would cross existing connections", 5000)
+                return
+
+            connect = ConnectionPatch(color=pointerColor, alpha=0.5, linewidth=1, picker=5, clip_on=True, label='connection',
+                        xyA=(coordX1, axs[0].get_ylim()[0]), coordsA=axs[0].transData,
+                        xyB=(coordX2, axs[1].get_ylim()[1]), coordsB=axs[1].transData)
+            fig.add_artist(connect)
+            artistsList_Dict[id(connect)] = [connect, vline1, vline2]
+            vline1List.append(vline1)
+            vline2List.append(vline2)
+            vline1 = None
+            vline2 = None
+
+            updatePointers()
+
+            #if len(vline1List) >= 2:
+            #    setInterp()
+            #    displayInterp(showInterp)
+            fig.canvas.draw()
+
+#------------------------------------------------------------------
+def on_key_release(event):
+    global key_x, key_shift, key_control
+
+    sys.stdout.flush()
+
+    #-----------------------------------------------
+    if event.key == 'x':
+        key_x = False
+
+    #-----------------------------------------------
+    elif event.key == 'shift':
+        key_shift = False
+
+    #-----------------------------------------------
+    elif event.key == 'control':
+        key_control = False
+        if event.inaxes == axs[0]:
+            points1.set_visible(False)
+        elif event.inaxes == axs[1]:
+            points2.set_visible(False)
+        fig.canvas.draw()
+
+#------------------------------------------------------------------
+def on_mouse_pick(event):
+    global artist_picked
+    global vline1, vline2, artistsList_Dict, vline1List, vline2List
+
+    artist_picked = event.artist
+    artistLabel = event.artist.get_label()
+
+    #-----------------------------------------------
+    if artistLabel == 'connection':
+        if key_x:
+            objectId = id(event.artist)
+            for artist in artistsList_Dict[objectId]:
+                artist.remove()
+                if artist in vline1List:
+                    vline1List.remove(artist)
+                if artist in vline2List:
+                    vline2List.remove(artist)
+            del artistsList_Dict[objectId]
+            
+            updatePointers()
+            #setInterp()
+            #displayInterp(showInterp)
+            fig.canvas.draw()
+
+    #-----------------------------------------------
+    if artistLabel == 'curve':
+        if key_shift:
+            coordPoint = [event.mouseevent.xdata, event.mouseevent.ydata]
+            if event.artist == curve1:
+                if vline1 != None:
+                    vline1.set_data([coordPoint[0], coordPoint[0]], [0,1])
+                else:
+                    vline1 = axs[0].axvline(coordPoint[0], color=pointerColor, alpha=0.5, linestyle='--', linewidth=1, label='vline')
+            elif event.artist == curve2:
+                if vline2 != None:
+                    vline2.set_data([coordPoint[0], coordPoint[0]], [0,1])
+                else:
+                    vline2 = axs[1].axvline(coordPoint[0], color=pointerColor, alpha=0.5, linestyle='--', linewidth=1, label='vline')
+            fig.canvas.draw()
+
+    #-----------------------------------------------
+    elif artistLabel == 'points':
+        if key_control:
+            ind = event.ind[0]
+            if event.artist == points1:
+                coordPoint = [x1[ind], y1[ind]]
+                if vline1 != None:
+                    vline1.set_data([coordPoint[0], coordPoint[0]], [0,1])
+                else:
+                    vline1 = axs[0].axvline(coordPoint[0], color=pointerColor, linestyle='--', linewidth=1, label='vline')
+            elif event.artist == points2:
+                coordPoint = [x2[ind], y2[ind]]
+                if vline2 != None:
+                    vline2.set_data([coordPoint[0], coordPoint[0]], [0,1])
+                else:
+                    vline2 = axs[1].axvline(coordPoint[0], color=pointerColor, linestyle='--', linewidth=1, label='vline')
+            fig.canvas.draw()
+
+#------------------------------------------------------------------
+def on_mouse_press(event):
+    global cur_xlim, cur_ylim, press, xpress, ypress, mousepress, press_origin
+
+    if event.inaxes not in axs: return
+
+    # Double click on curves or points with left mouse button
+    if event.button == 1 and event.dblclick and artist_picked in [curve1, curve2, points1, points2]:
+        color = QColorDialog.getColor()
+        if color.isValid():
+            if artist_picked in [curve1, points1]:
+                curve1.set_color(color.name())
+                points1.set_color(color.name())
+            elif artist_picked in [curve2, points2]:
+                curve2.set_color(color.name())
+                points2.set_color(color.name())
+            fig.canvas.draw()
+            fig.canvas.flush_events()
+        return 
+
+    mousepress = None
+    if event.button == 1:
+        mousepress = "left"
+        press_origin = event.inaxes
+
+    cur_xlim = event.inaxes.get_xlim()
+    cur_ylim = event.inaxes.get_ylim()
+    press = event.xdata, event.ydata
+    xpress, ypress = press
+
+#------------------------------------------------------------------
+def on_mouse_release(event):
+    global press
+    press = None
+
+#------------------------------------------------------------------
+def on_mouse_motion(event):
+    global cur_xlim, cur_ylim, press
+
+    #-----------------------------------------------
+    if not fig.get_visible():
+        return 
+
+    #-----------------------------------------------
+    if event.inaxes not in axs:
+        press = None
+        linecursor1.set_visible(False)
+        linecursor2.set_visible(False)
+        points1.set_visible(False)
+        points2.set_visible(False)
+        fig.canvas.draw()
+        return
+
+    #-----------------------------------------------
+    if event.inaxes is axs[0]:
+        linecursor1.set_visible(True)
+        linecursor2.set_visible(False)
+        points2.set_visible(False)
+        linecursor1.set_xdata([event.xdata])
+    elif event.inaxes is axs[1]:
+        linecursor1.set_visible(False)
+        points1.set_visible(False)
+        linecursor2.set_visible(True)
+        linecursor2.set_xdata([event.xdata])
+    fig.canvas.draw()
+
+    #-----------------------------------------------
+    if press is None: return
+
+    #-----------------------------------------------
+    if mousepress == 'left':
+        linecursor1.set_visible(False)
+        linecursor2.set_visible(False)
+        dx = event.xdata - xpress
+        dy = event.ydata - ypress
+        cur_xlim -= dx
+        cur_ylim -= dy
+        event.inaxes.set_xlim(cur_xlim[0], cur_xlim[1])
+        event.inaxes.set_ylim(cur_ylim[0], cur_ylim[1])
+
+        updateConnections()
+        event.inaxes.figure.canvas.draw()
+        event.inaxes.figure.canvas.flush_events()
+
+#------------------------------------------------------------------
+def detect_artist(event):
+    """Detect which artist the scroll event occurred on, including axis ticks."""
+    for ax in axs:
+        # First check if the event occurred on the X or Y axis ticks
+        if ax.xaxis.contains(event)[0]:
+            return ax.xaxis  # Detected XAxis
+        if ax.yaxis.contains(event)[0]:
+            return ax.yaxis  # Detected YAxis
+
+        # Now check if the event occurred inside the Axes itself
+        if ax.contains(event)[0]:
+            return ax  # Detected Axes itself
+    return None
+
+#------------------------------------------------------------------
+def on_mouse_scroll(event):
+
+    """Callback for scroll event to detect artist on the correct axis."""
+    artist = detect_artist(event)  # Detect the artist in the entire figure
+
+    if artist is None:
+        print("No artist detected under the scroll event.")
+        return
+
+    scale_factor = 0.9 if event.button == 'up' else 1.1
+
+    if isinstance(artist, XAxis):
+        ax = artist.axes
+        cur_xlim = ax.get_xlim()
+        xdata = (cur_xlim[0] + cur_xlim[1]) / 2
+        new_xlim = [xdata - (xdata - cur_xlim[0]) * scale_factor,
+                    xdata + (cur_xlim[1] - xdata) * scale_factor]
+        ax.set_xlim(new_xlim)
+        #print(f"Zoomed X axis in axis '{ax.get_label()}'")
+        displayStatusMessage("Plots", "Zoom on Xaxis", 5000)
+
+    elif isinstance(artist, YAxis):
+        ax = artist.axes
+        cur_ylim = ax.get_ylim()
+        ydata = (cur_ylim[0] + cur_ylim[1]) / 2
+        new_ylim = [ydata - (ydata - cur_ylim[0]) * scale_factor,
+                    ydata + (cur_ylim[1] - ydata) * scale_factor]
+        ax.set_ylim(new_ylim)
+        #print(f"Zoomed Y axis in axis '{ax.get_label()}'")
+        displayStatusMessage("Plots", "Zoom on Yaxis", 5000)
+
+    elif isinstance(artist, plt.Axes):
+        ax = artist
+        cur_xlim = ax.get_xlim()
+        cur_ylim = ax.get_ylim()
+        xdata = event.xdata
+        ydata = event.ydata
+
+        # Only zoom in the plot area, hence the need to check xdata and ydata
+        #if xdata is None or ydata is None:
+        #    return  # Prevent NoneType error if data coords are unavailable
+
+        new_xlim = [xdata - (xdata - cur_xlim[0]) * scale_factor,
+                    xdata + (cur_xlim[1] - xdata) * scale_factor]
+        new_ylim = [ydata - (ydata - cur_ylim[0]) * scale_factor,
+                    ydata + (cur_ylim[1] - ydata) * scale_factor]
+        ax.set_xlim(new_xlim)
+        ax.set_ylim(new_ylim)
+        #print(f"Zoomed both axes in axis '{ax.get_label()}'")
+        displayStatusMessage("Plots", "Zoom on axes", 5000)
+
+    updateConnections()
+    ax.figure.canvas.draw()
+
+#========================================================================================
+def saveData():
+    fileName, _ = QFileDialog.getSaveFileName(main_window, "Save Data", "", "Excel files (*.xlsx)")
+    if fileName:
+        with pd.ExcelWriter(fileName) as writer:
+            df = pd.DataFrame({x1Name: x1, y1Name: y1, x2Name: x2, y2Name: y2})
+                               # y2Name + ' interpolated (' + kindInterpolation + ') on ' + x1Name: x2Interp})
+            df.to_excel(writer, sheet_name='Data', index=False, float_format="%.8f")
+            worksheet = writer.sheets['Data']
+            for i, col in enumerate(df.columns, 1): 
+                worksheet.column_dimensions[get_column_letter(i)].width = 25 
+
+            df = pd.DataFrame({'Coordinates X1': coordsX1, 'Coordinates X2': coordsX2})
+            df.to_excel(writer, sheet_name='Pointers', index=False, float_format="%.8f")
+            worksheet = writer.sheets['Pointers']
+            for i, col in enumerate(df.columns, 1): 
+                worksheet.column_dimensions[get_column_letter(i)].width = 25 
+
+        displayStatusMessage("Data", "Saved Data in file " + fileName, 5000)
+
+#========================================================================================
+def savePlots():
+    fileName, _ = QFileDialog.getSaveFileName(main_window, "Save Plots", "", "PNG Files (*.png);;PDF Files (*.pdf)")
+    if fileName:
+        plt.savefig(fileName)
+        displayStatusMessage("Plots", "Saved Plots in file " + fileName, 5000)
+
+#========================================================================================
+def detach_tab(tab_widget, index):
+    """Détache l'onglet et l'affiche dans une nouvelle fenêtre."""
+    tab_content = tab_widget.widget(index)
+    tab_name = tab_widget.tabText(index)
+
+    # Retirer l'onglet du QTabWidget
+    tab_widget.removeTab(index)
+
+    # Créer une nouvelle fenêtre pour l'onglet détaché
+    detached_window = QMainWindow()
+    detached_window.setWindowTitle(tab_name)
+    detached_window.setGeometry(200, 200, 1100, 700)  # Taille de la fenêtre détachée
+
+    # Créer un layout pour le contenu détaché
+    cloned_content = QWidget()
+    cloned_layout = QVBoxLayout()
+
+    # Cloner le contenu de l'onglet
+    for i in range(tab_content.layout().count()):
+        item = tab_content.layout().itemAt(i)
+        if item is not None and item.widget() is not None:
+            # Clone le widget
+            cloned_layout.addWidget(item.widget().clone() if hasattr(item.widget(), 'clone') else item.widget())
+
+    cloned_content.setLayout(cloned_layout)
+
+    # Créer une barre d'état propre à la fenêtre détachée
+    detached_window.setStatusBar(QStatusBar())
+    detached_window.statusBar().showMessage(f"{tab_name} - Ready")  # Message par défaut
+
+    # Gérer la fermeture de la fenêtre détachée
+    def on_close_event(event):
+        tab_widget.addTab(cloned_content, tab_name)  # Rattacher le contenu
+        tab_widget.setCurrentWidget(cloned_content)  # Sélectionner l'onglet réattaché
+        event.accept()
+        del detached_windows[tab_name]
+
+    detached_window.closeEvent = on_close_event
+
+    # Définir le widget central de la fenêtre détachée
+    detached_window.setCentralWidget(cloned_content)
+
+    # Afficher la nouvelle fenêtre
+    detached_window.show()
+
+    # Ajouter la fenêtre détachée à la liste
+    detached_windows[tab_name] = detached_window
+
+#========================================================================================
+def show_help():
+    with open("help.html", "r") as file:
+        help_text = file.read()
+    
+    dialog = QDialog()
+    dialog.setWindowTitle("Help")
+    dialog.setFixedSize(800, 800)
+    
+    layout = QVBoxLayout()
+    dialog.setLayout(layout)
+
+    text_browser = QTextBrowser()
+    text_browser.setHtml(help_text)
+    layout.addWidget(text_browser)
+    
+    close_button = QPushButton("Close")
+    close_button.clicked.connect(dialog.accept)
+    layout.addWidget(close_button)
+
+    dialog.exec_()
+
+#========================================================================================
+def displayStatusMessage(target, message, duration=0):
+
+    if target in detached_windows:
+        detached_windows[target].statusBar().showMessage(message, duration)
+    else:
+        main_window.statusBar().showMessage(message, duration)
+
+#========================================================================================
+app = QApplication(sys.argv)
+main_window = QMainWindow()
+main_window.setGeometry(200, 200, 1200, 800)
+
+tabs = QTabWidget(main_window)
+tabs.setMovable(True)
+
+tab1 = create_Data_tab()
+tab2 = create_Plots_tab()
+tab3 = create_Pointers_tab()
+tabs.addTab(tab1, "Data")
+tabs.addTab(tab2, "Plots")
+tabs.addTab(tab3, "Pointers")
+
+tabs.tabBarDoubleClicked.connect(lambda index: detach_tab(tabs, index))
+tabs.currentChanged.connect(lambda index: displayStatusMessage("Main", tabs.tabText(index), 2000))
+
+main_window.setCentralWidget(tabs)
+menu_bar = main_window.menuBar()
+
+file_menu = menu_bar.addMenu("File")
+help_menu = menu_bar.addMenu("Help")
+about_menu = menu_bar.addMenu("About")
+
+loadData_action = QAction("Open Data", main_window)
+saveData_action = QAction("Save Data", main_window)
+savePlots_action = QAction("Save Plots", main_window)
+exit_action = QAction("Exit", main_window)
+exit_action.setShortcut("Q") 
+loadData_action.triggered.connect(loadData)
+saveData_action.triggered.connect(saveData)
+savePlots_action.triggered.connect(savePlots)
+exit_action.triggered.connect(app.quit)
+file_menu.addAction(loadData_action)
+file_menu.addSeparator()
+file_menu.addAction(saveData_action)
+file_menu.addAction(savePlots_action)
+file_menu.addSeparator()
+file_menu.addAction(exit_action)
+
+help_action = QAction("Help", main_window)
+help_action.triggered.connect(show_help)
+help_menu.addAction(help_action)
+
+about_text = '''
+Created by LSCE - <i>Septembre 2024</i>
+<ul>
+<li>Software design and development: Patrick Brockmann
+<li>Documentation: Francisco Hevia-Cruz
+</ul>
+'''
+about_action = QAction("About", main_window)
+about_action.triggered.connect(lambda: QMessageBox.about(main_window, "About", about_text))
+about_menu.addAction(about_action)
+
+main_window.setStatusBar(QStatusBar())
+main_window.statusBar().showMessage("Application ready")
+main_window.show()
+
+sys.exit(app.exec_())

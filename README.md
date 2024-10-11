@@ -22,18 +22,16 @@ Based on:
 Usage:  PyAnalyseries_v1.0.py [-h]
         [-p filePointers]
         [-k kindInterpolation]
-        fileCSV x1Name y1Name x2Name y2Name
+        fileXLSX
 
 Options:
         -h, -?, --help, -help
                 Print this manual
-        -p, --pointers
-                Pointers file (csv format, 2 columns, no header)
         -k, --kind
                 Interpolation kind 'linear' or 'quadratic' (default 'linear')
 
 Examples:
-        PyAnalyseries_v1.0.py -p pointers2.csv testFile.csv 'Time (ka)' 'Stack Benthic d18O (per mil)' 'depthODP849cm' 'd18Oforams-b'
+        PyAnalyseries_v1.0.py testFile.xlsx
 ```
 
 ## Interactions 
@@ -78,9 +76,6 @@ Press 'A' key on a plot
 -------------------------------------------------------------------------------
 Press 'p' key
     Save figure as pdf file and png file
--------------------------------------------------------------------------------
-Press 'i' key
-    Save pointers to csv file
 -------------------------------------------------------------------------------
 Press 'X' key
     Delete all pointers and connections 

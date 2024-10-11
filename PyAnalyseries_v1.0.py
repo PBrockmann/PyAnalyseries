@@ -8,23 +8,27 @@
 import sys
 import os
 import re
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
+import matplotlib.pyplot as plt
 from matplotlib.patches import ConnectionPatch
 from matplotlib.lines import Line2D
 from matplotlib.axis import XAxis, YAxis
 import matplotlib.patches as patches
-from scipy import interpolate
-
 import matplotlib as mpl
 
+from scipy import interpolate
+
+from openpyxl.utils import get_column_letter
+
+#=========================================================================================
 mpl.rcParams['toolbar'] = 'None'
 mpl.rcParams['axes.labelsize'] = 10
 mpl.rcParams['xtick.labelsize'] = 8
 mpl.rcParams['ytick.labelsize'] = 8
 
-version = "v1.0"
+version = 'v1.0'
 curve1Color = 'red'
 curve2Color = 'forestgreen'
 pointerColor = 'blue'
@@ -34,20 +38,17 @@ curveWidth = 0.8
 usage = f"""
 ####################################################################################################################
 Usage:  PyAnalyseries_{version}.py [-h]
-        [-p filePointers]
         [-k kindInterpolation]
-        fileCSV x1Name y1Name x2Name y2Name
+        fileXLSX
 
 Options:
         -h, -?, --help, -help
                 Print this manual
-        -p, --pointers
-                Pointers file (csv format, 2 columns, no header)
         -k, --kind
                 Interpolation kind 'linear' or 'quadratic' (default 'linear')
 
 Examples:
-        PyAnalyseries_{version}.py -p pointers2.csv testFile.csv 'Time (ka)' 'Stack Benthic d18O (per mil)' 'depthODP849cm' 'd18Oforams-b'
+        PyAnalyseries_{version}.py testFile.xlsx
 """
 
 #=========================================================================================
@@ -92,9 +93,6 @@ Press 'A' key on a plot
 Press 'p' key
     Save figure as pdf file and png file
 -------------------------------------------------------------------------------
-Press 'i' key
-    Save pointers to csv file
--------------------------------------------------------------------------------
 Press 'X' key
     Delete all pointers and connections 
 -------------------------------------------------------------------------------
@@ -116,10 +114,6 @@ while len(sys.argv[1:]) != 0:
         del(sys.argv[1])
         print(usage)
         sys.exit(1)
-    elif sys.argv[1] in ('-p', '--pointers'):
-        filePointers = sys.argv[2]
-        del(sys.argv[1])
-        del(sys.argv[1])
     elif sys.argv[1] in ('-k', '--kind'):
         kindInterpolation = sys.argv[2]
         del(sys.argv[1])
@@ -130,7 +124,7 @@ while len(sys.argv[1:]) != 0:
     else:
         break
 
-if len(sys.argv[1:]) != 5:
+if len(sys.argv[1:]) != 1:
     print(usage)
     sys.exit(1)
 
@@ -141,10 +135,6 @@ if kindInterpolation not in ('linear', 'quadratic'):
 
 # -------------------------
 fileData = sys.argv[1]
-x1Name = sys.argv[2]
-y1Name = sys.argv[3]
-x2Name = sys.argv[4]
-y2Name = sys.argv[5]
 
 #=========================================================================================
 key_x = False
@@ -176,39 +166,35 @@ showInterp = False
 second_xaxis = None
 
 #=========================================================================================
-def readData(file, x1Name, y1Name, x2Name, y2Name):
-    global x1, y1, x2, y2
-
-    try:
-        df = pd.read_csv(file)
-        #print(df.columns)
-
-        x1 = df[x1Name].to_numpy()
-        y1 = df[y1Name].to_numpy()
-        x2 = df[x2Name].to_numpy()
-        y2 = df[y2Name].to_numpy()
-
-    except:
-        print("Error: reading data file")
-
-#=========================================================================================
-def readPointers(file):
+def loadData(fileName):
+    global x1, y1, x2, y2, x1Name, y1Name, x2Name, y2Name
     global coordsX1, coordsX2
 
+    dataframe = pd.read_excel(fileName)
+    #x1Name = 'Time (ka)'
+    #y1Name = 'Stack Benthic d18O (per mil)'
+    #x2Name = 'depthODP849cm'
+    #y2Name = 'd18Oforams-b'
+    x1Name, y1Name, x2Name, y2Name = dataframe.columns[0:4]    # First 4 columns
+    x1 = dataframe[x1Name].to_numpy()
+    y1 = dataframe[y1Name].to_numpy()
+    x2 = dataframe[x2Name].to_numpy()
+    y2 = dataframe[y2Name].to_numpy()
+
     try:
-        df = pd.read_csv(file, names=['coordsX1','coordsX2'])
-        coordsX1 = df['coordsX1'].to_numpy()
-        coordsX2 = df['coordsX2'].to_numpy()
+        dataframe = pd.read_excel(fileName, sheet_name="Pointers")
+        coordsX1 = dataframe["Coordinates X1"].to_numpy()
+        coordsX2 = dataframe["Coordinates X2"].to_numpy()
 
         # check if arrays are monotonically increasing
         if not (((np.diff(coordsX1) >= 0).all()) and ((np.diff(coordsX2) >= 0).all())):
-            print(df.to_string(index=False, header=False, float_format="%.8f"))
+            print(dataframe.to_string(index=False, header=False, float_format="%.8f"))
             print("Error: pointer coordinates are not monotonically increasing")
             coordsX1 = []
             coordsX2 = []
 
     except:
-        print("Error: reading pointers file")
+        print("No sheetname Pointers found in ", fileName)
 
 #=========================================================================================
 def updateConnections():
@@ -406,7 +392,7 @@ def updateAxes():
 
 #=========================================================================================
 def on_key_press(event):
-    global key_x, key_shift, key_control, vline1, vline2
+    global key_x, key_shift, key_control, vline1, vline2, artistsList_Dict
     global showInterp
 
     sys.stdout.flush()
@@ -507,28 +493,17 @@ def on_key_press(event):
             df = pd.DataFrame({x1Name: x1, y1Name: y1, x2Name: x2, y2Name: y2, 
                                 y2Name + ' interpolated (' + kindInterpolation + ') on ' + x1Name: x2Interp})
             df.to_excel(writer, sheet_name='Data', index=False, float_format="%.8f")
+            worksheet = writer.sheets['Data']
+            for i, col in enumerate(df.columns, 1): 
+                worksheet.column_dimensions[get_column_letter(i)].width = 25
 
-            df = pd.DataFrame({'coordsX1': coordsX1, 'coordsX2': coordsX2})
+            df = pd.DataFrame({'Coordinates sX1': coordsX1, 'Coordinates X2': coordsX2})
             df.to_excel(writer, sheet_name='Pointers', index=False, float_format="%.8f")
+            worksheet = writer.sheets['Pointers']
+            for i, col in enumerate(df.columns, 1): 
+                worksheet.column_dimensions[get_column_letter(i)].width = 25
 
         print("Info: saved data in file ", fileName)
-
-    #-----------------------------------------------
-    elif event.key == 'i':
-
-        if not coordsX1: return
-
-        counterFilename = 1
-        fileNameTemplate = 'saveLineage_pointersFile_{}.csv'
-        while os.path.isfile(fileNameTemplate.format("%02d" %counterFilename)):
-            counterFilename += 1
-        fileName = fileNameTemplate.format("%02d" %counterFilename)
-
-        df = pd.DataFrame({'coordsX1': coordsX1, 'coordsX2': coordsX2})
-        df.to_csv(fileName, index=False, header=False, float_format="%.8f")
-
-        print(df.to_string(index=False, header=False, float_format="%.8f"))
-        print("Info: saved pointers in file ", fileName)
 
     #-----------------------------------------------
     elif event.key == 'z':
@@ -712,7 +687,7 @@ def on_mouse_scroll(event):
 ##########################################################################################
 
 #=========================================================================================
-readData(fileData, x1Name, y1Name, x2Name, y2Name)
+loadData(fileData)
 
 #=========================================================================================
 fig, axs = plt.subplots(2, 1, figsize=(10,8), num='PyAnalyseries ' + version)
@@ -762,11 +737,9 @@ fig.canvas.mpl_connect('motion_notify_event',on_mouse_motion)
 fig.canvas.mpl_connect('pick_event', on_mouse_pick)
 
 #=========================================================================================
-if filePointers:
-    readPointers(filePointers)
-    drawConnections()
-    setInterp()
-    updateAxes()
+drawConnections()
+setInterp()
+updateAxes()
 
 #=========================================================================================
 plt.show()
