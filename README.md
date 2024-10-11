@@ -20,7 +20,6 @@ Based on:
 ```
 ####################################################################################################################
 Usage:  PyAnalyseries_v1.0.py [-h]
-        [-p filePointers]
         [-k kindInterpolation]
         fileXLSX
 

@@ -30,6 +30,12 @@ from scipy import interpolate
 
 from openpyxl.utils import get_column_letter
 
+#=========================================================================================
+if len(sys.argv[1:]) >= 1:
+    fileData = sys.argv[1]
+else:
+    fileData = None
+
 #========================================================================================
 version = 'v2.2'
 curve1Color = 'darkmagenta'
@@ -41,6 +47,49 @@ curveWidth = 0.8
 detached_windows = {}
 tableDataWidget = None
 tablePointersWidget = None
+
+#========================================================================================
+fig = None 
+axs = None
+axsInterp = None
+curve1 = None
+curve2 = None
+points1 = None
+points2 = None
+curve2Interp = None
+vline1 = None
+vline2 = None
+x1 = []
+y1 = [] 
+x2 = []
+y2 = [] 
+x2Interp = [] 
+showInterp = False
+linecursor1 = None
+linecursor2 = None
+x1Name = None
+y1Name = None 
+x2Name = None
+y2Name = None
+artistsList_Dict = {} 
+vline1List = []
+vline2List = []
+coordsX1 = []
+coordsX2 = []
+second_xaxis = None
+kindInterpolation = 'linear'
+
+press = None
+cur_xlim = None
+cur_ylim = None
+xpress = None
+ypress = None
+mousepress = None
+press_origin = None
+artist_picked = None
+key_x = None
+key_shift = None
+key_control = None
 
 #========================================================================================
 def create_Data_tab():
@@ -99,62 +148,23 @@ def create_Plots_tab():
     canvas.mpl_connect('key_release_event', on_key_release)
 
     #---------------------------------------------------------
-    canvas.setFocusPolicy(Qt.ClickFocus)
-    canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
     layout.addWidget(canvas)
 
     widget.setLayout(layout)
     return widget
 
-#========================================================================================
-fig = None 
-axs = []
-curve1 = None
-curve2 = None
-points1 = None
-points2 = None
-curve2Interp = None
-vline1 = None
-vline2 = None
-x1 = []
-y1 = [] 
-x2 = []
-y2 = [] 
-x2Interp = [] 
-showInterp = False
-linecursor1 = None
-linecursor2 = None
-x1Name = None
-y1Name = None 
-x2Name = None
-y2Name = None
-artistsList_Dict = {} 
-vline1List = []
-vline2List = []
-coordsX1 = []
-coordsX2 = []
-
-press = None
-cur_xlim = None
-cur_ylim = None
-xpress = None
-ypress = None
-mousepress = None
-press_origin = None
-artist_picked = None
-key_x = None
-key_shift = None
-key_control = None
-
 #=========================================================================================
 def updatePlots():
-    global fig, axs
+    global fig, axs, axsInterp
     global curve1, curve2, points1, points2, linecursor1, linecursor2
 
+    activate_tab_by_name(tabs, "Plots")
     fig.set_visible(True)
+    fig.canvas.setFocus()
 
     axs[0].clear()
     axs[1].clear()
+    axsInterp = None
 
     #---------------------------------------------------------
     curve1, = axs[0].plot(x1, y1, color=curve1Color, picker=True, pickradius=20, linewidth=curveWidth, label='curve')
@@ -192,26 +202,30 @@ def updatePlots():
     axsInterp.set_label('curve2Interp')
 
     #---------------------------------------------------------
-    fig.canvas.draw()
+    axs[0].relim()
+    axs[1].relim()
 
 #=========================================================================================
-def loadData():
-    global x1, y1, x2, y2, x1Name, y1Name, x2Name, y2Name
-    global coordsX1, coordsX2
-    global tableDataWidget
-
-    tabs.setCurrentIndex(0)
-
+def openData():
     fileName, _ = QFileDialog.getOpenFileName(main_window, "Open Excel file", "", "Excel files (*.xlsx);;All files (*)")
     if not fileName: 
         displayStatusMessage("Data", "Cannot open file", 5000)
         return
+    loadData(fileName)
+
+#=========================================================================================
+def loadData(fileName):
+    global x1, y1, x2, y2, x1Name, y1Name, x2Name, y2Name
+    global coordsX1, coordsX2
+    global tableDataWidget
+    global showInterp 
+
+    deleteConnections()
+    updatePointers()
+    deleteInterp()
+    showInterp = False
 
     dataframe = pd.read_excel(fileName)
-    #x1Name = 'Time (ka)'
-    #y1Name = 'Stack Benthic d18O (per mil)'
-    #x2Name = 'depthODP849cm'
-    #y2Name = 'd18Oforams-b'
     x1Name, y1Name, x2Name, y2Name = dataframe.columns[0:4]    # First 4 columns
     x1 = dataframe[x1Name].to_numpy()
     y1 = dataframe[y1Name].to_numpy()
@@ -233,6 +247,7 @@ def loadData():
                 item.setBackground(QColor(250, 250, 250))
 
     updatePlots()
+    updateAxes()
 
     try:
         dataframe = pd.read_excel(fileName, sheet_name="Pointers")
@@ -248,7 +263,7 @@ def loadData():
         else:
             drawConnections()
             updatePointers()
-            fig.canvas.draw()
+            updateAxes()
 
     except:
         displayStatusMessage("Data", "No sheetname Pointers found", 5000)
@@ -327,12 +342,58 @@ def updatePointers():
 
     displayStatusMessage("Plots", "Pointers updated", 5000)
 
+#=========================================================================================
+def updateAxes():
+    # Full vertical range on both plots, horizontal range set from pointers 
+    
+    # autoscale to get ylim range
+    axs[0].relim()
+    axs[1].relim()
+    axs[0].autoscale(axis='y')
+    axs[1].autoscale(axis='y')
+    ylim_axs0 = axs[0].get_ylim()
+    ylim_axs1 = axs[1].get_ylim()
+    
+    # hide 
+    displayInterp(False)
+    linecursor1.set_visible(False)
+    linecursor2.set_visible(False)
+
+    # autoscale to get xlim range only from pointers
+    curve1.set_visible(False)
+    curve2.set_visible(False)
+    axs[0].relim(visible_only=True)
+    axs[1].relim(visible_only=True)
+    axsInterp.relim(visible_only=True)
+    axs[0].autoscale()
+    axs[1].autoscale()
+    axsInterp.autoscale()
+    xlim_axs0 = axs[0].get_xlim()
+    xlim_axs1 = axs[1].get_xlim()
+    
+    # apply xlim and ylim ranges
+    curve1.set_visible(True)
+    curve2.set_visible(True)
+    axs[0].set_xlim(xlim_axs0)
+    axs[1].set_xlim(xlim_axs1)
+    axs[0].set_ylim(ylim_axs0)
+    axs[1].set_ylim(ylim_axs1)
+    
+    updateConnections()
+    displayInterp(showInterp)
+    fig.canvas.draw()
+
 #========================================================================================
 def on_key_press(event):
     global key_x, key_shift, key_control, vline1, vline2, artistsList_Dict
     global tablePointersWidget
+    global showInterp
 
     sys.stdout.flush()
+
+    #-----------------------------------------------
+    if event.key == 'a':
+        updateAxes()
 
     #-----------------------------------------------
     if event.key == 'x':
@@ -341,12 +402,17 @@ def on_key_press(event):
     #-----------------------------------------------
     if event.key == 'X':
         deleteConnections()
-        #deleteInterp()
-        #showInterp = False
-        #displayInterp(showInterp)
         updatePointers()
+        deleteInterp()
+        showInterp = False
+        displayInterp(showInterp)
         displayStatusMessage("Plots", "Pointers deleted", 5000)
-        fig.canvas.draw()
+
+    #-----------------------------------------------
+    elif event.key == 'z':
+        showInterp = not showInterp
+        setInterp()
+        displayInterp(showInterp)
 
     #-----------------------------------------------
     elif event.key == 'shift':
@@ -386,11 +452,11 @@ def on_key_press(event):
             vline2 = None
 
             updatePointers()
-
-            #if len(vline1List) >= 2:
-            #    setInterp()
-            #    displayInterp(showInterp)
             fig.canvas.draw()
+
+            if len(vline1List) >= 2:
+                setInterp()
+                displayInterp(showInterp)
 
 #------------------------------------------------------------------
 def on_key_release(event):
@@ -436,9 +502,8 @@ def on_mouse_pick(event):
             del artistsList_Dict[objectId]
             
             updatePointers()
-            #setInterp()
-            #displayInterp(showInterp)
-            fig.canvas.draw()
+            setInterp()
+            displayInterp(showInterp)
 
     #-----------------------------------------------
     if artistLabel == 'curve':
@@ -544,6 +609,10 @@ def on_mouse_motion(event):
     if press is None: return
 
     #-----------------------------------------------
+    # When mousepress has been done not in the listen axe
+    if event.inaxes.get_label() != press_origin.get_label(): return
+
+    #-----------------------------------------------
     if mousepress == 'left':
         linecursor1.set_visible(False)
         linecursor2.set_visible(False)
@@ -593,7 +662,7 @@ def on_mouse_scroll(event):
                     xdata + (cur_xlim[1] - xdata) * scale_factor]
         ax.set_xlim(new_xlim)
         #print(f"Zoomed X axis in axis '{ax.get_label()}'")
-        displayStatusMessage("Plots", "Zoom on Xaxis", 5000)
+        #displayStatusMessage("Plots", "Zoom on Xaxis", 5000)
 
     elif isinstance(artist, YAxis):
         ax = artist.axes
@@ -603,7 +672,7 @@ def on_mouse_scroll(event):
                     ydata + (cur_ylim[1] - ydata) * scale_factor]
         ax.set_ylim(new_ylim)
         #print(f"Zoomed Y axis in axis '{ax.get_label()}'")
-        displayStatusMessage("Plots", "Zoom on Yaxis", 5000)
+        #displayStatusMessage("Plots", "Zoom on Yaxis", 5000)
 
     elif isinstance(artist, plt.Axes):
         ax = artist
@@ -623,18 +692,67 @@ def on_mouse_scroll(event):
         ax.set_xlim(new_xlim)
         ax.set_ylim(new_ylim)
         #print(f"Zoomed both axes in axis '{ax.get_label()}'")
-        displayStatusMessage("Plots", "Zoom on axes", 5000)
+        #displayStatusMessage("Plots", "Zoom on axes", 5000)
 
     updateConnections()
     ax.figure.canvas.draw()
+
+#=========================================================================================
+def deleteInterp():
+    global x2Interp, curve2Interp, second_xaxis, showInterp
+
+    if curve2Interp:
+        curve2Interp.remove()
+        curve2Interp = None
+        x2Interp = None
+        second_xaxis.remove()
+        second_xaxis = None
+
+#=========================================================================================
+def setInterp():
+    global x2Interp, curve2Interp, second_xaxis, coordsX1, coordsX2, showInterp
+
+    if len(vline1List) <= 1:
+        displayStatusMessage("Plots", "Warning: interpolation needs a minimum of 2 connections", 5000)
+        if showInterp:
+            showInterp = False
+            displayInterp(showInterp)
+        return
+
+    deleteInterp()
+    coordsX1 = sorted([float(line.get_xdata()[0]) for line in vline1List])
+    coordsX2 = sorted([float(line.get_xdata()[0]) for line in vline2List])
+
+    f_1to2 = interpolate.interp1d(coordsX1, coordsX2, kind=kindInterpolation, fill_value="extrapolate")
+    f_2to1 = interpolate.interp1d(coordsX2, coordsX1, kind=kindInterpolation, fill_value="extrapolate")
+    second_xaxis = axsInterp.secondary_xaxis('top', functions=(f_1to2, f_2to1))
+    second_xaxis.tick_params(labelrotation=30)
+    second_xaxis.set_xlabel(x2Name)
+    plt.setp(second_xaxis.get_xticklabels(), horizontalalignment='left')
+
+    x2Interp = f_2to1(x2)
+    curve2Interp, = axsInterp.plot(x2Interp, y2, color=curve2Color, alpha=0.8, linewidth=curveWidth)
+
+#=========================================================================================
+def displayInterp(visible):
+
+    if visible:
+            if curve2Interp: 
+                axsInterp.set_visible(True)
+                curve2Interp.set_visible(True)
+    else:
+            if curve2Interp: 
+                axsInterp.set_visible(False)
+                curve2Interp.set_visible(False)
+    fig.canvas.draw()
 
 #========================================================================================
 def saveData():
     fileName, _ = QFileDialog.getSaveFileName(main_window, "Save Data", "", "Excel files (*.xlsx)")
     if fileName:
         with pd.ExcelWriter(fileName) as writer:
-            df = pd.DataFrame({x1Name: x1, y1Name: y1, x2Name: x2, y2Name: y2})
-                               # y2Name + ' interpolated (' + kindInterpolation + ') on ' + x1Name: x2Interp})
+            df = pd.DataFrame({x1Name: x1, y1Name: y1, x2Name: x2, y2Name: y2,
+                               y2Name + ' interpolated (' + kindInterpolation + ') on ' + x1Name: x2Interp})
             df.to_excel(writer, sheet_name='Data', index=False, float_format="%.8f")
             worksheet = writer.sheets['Data']
             for i, col in enumerate(df.columns, 1): 
@@ -684,7 +802,7 @@ def detach_tab(tab_widget, index):
 
     # Créer une barre d'état propre à la fenêtre détachée
     detached_window.setStatusBar(QStatusBar())
-    detached_window.statusBar().showMessage(f"{tab_name} - Ready")  # Message par défaut
+    detached_window.statusBar().showMessage(f"{tab_name} - Ready", 3000)  # Message par défaut
 
     # Gérer la fermeture de la fenêtre détachée
     def on_close_event(event):
@@ -703,6 +821,13 @@ def detach_tab(tab_widget, index):
 
     # Ajouter la fenêtre détachée à la liste
     detached_windows[tab_name] = detached_window
+
+#========================================================================================
+def activate_tab_by_name(tab_widget, tab_name):
+    for index in range(tab_widget.count()):
+        if tab_widget.tabText(index) == tab_name:
+            tab_widget.setCurrentIndex(index)
+            return
 
 #========================================================================================
 def show_help():
@@ -750,7 +875,7 @@ tabs.addTab(tab2, "Plots")
 tabs.addTab(tab3, "Pointers")
 
 tabs.tabBarDoubleClicked.connect(lambda index: detach_tab(tabs, index))
-tabs.currentChanged.connect(lambda index: displayStatusMessage("Main", tabs.tabText(index), 2000))
+#tabs.currentChanged.connect(lambda index: displayStatusMessage("Main", tabs.tabText(index), 2000))
 
 main_window.setCentralWidget(tabs)
 menu_bar = main_window.menuBar()
@@ -759,16 +884,16 @@ file_menu = menu_bar.addMenu("File")
 help_menu = menu_bar.addMenu("Help")
 about_menu = menu_bar.addMenu("About")
 
-loadData_action = QAction("Open Data", main_window)
+openData_action = QAction("Open Data", main_window)
 saveData_action = QAction("Save Data", main_window)
 savePlots_action = QAction("Save Plots", main_window)
 exit_action = QAction("Exit", main_window)
 exit_action.setShortcut("Q") 
-loadData_action.triggered.connect(loadData)
+openData_action.triggered.connect(openData)
 saveData_action.triggered.connect(saveData)
 savePlots_action.triggered.connect(savePlots)
 exit_action.triggered.connect(app.quit)
-file_menu.addAction(loadData_action)
+file_menu.addAction(openData_action)
 file_menu.addSeparator()
 file_menu.addAction(saveData_action)
 file_menu.addAction(savePlots_action)
@@ -780,10 +905,10 @@ help_action.triggered.connect(show_help)
 help_menu.addAction(help_action)
 
 about_text = '''
-Created by LSCE - <i>Septembre 2024</i>
+Created by LSCE - <i>October 2024</i>
 <ul>
-<li>Software design and development: Patrick Brockmann
-<li>Documentation: Francisco Hevia-Cruz
+<li>Patrick Brockmann : Software design and developments
+<li>Francisco Hevia-Cruz : Documentation and testing
 </ul>
 '''
 about_action = QAction("About", main_window)
@@ -791,7 +916,11 @@ about_action.triggered.connect(lambda: QMessageBox.about(main_window, "About", a
 about_menu.addAction(about_action)
 
 main_window.setStatusBar(QStatusBar())
-main_window.statusBar().showMessage("Application ready")
+displayStatusMessage("Main", "Application ready", 5000)
 main_window.show()
+
+if fileData:
+    loadData(fileData)
+    displayStatusMessage("Main", fileData + " loaded", 5000)
 
 sys.exit(app.exec_())

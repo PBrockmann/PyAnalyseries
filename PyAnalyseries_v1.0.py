@@ -29,7 +29,7 @@ mpl.rcParams['xtick.labelsize'] = 8
 mpl.rcParams['ytick.labelsize'] = 8
 
 version = 'v1.0'
-curve1Color = 'red'
+curve1Color = 'darkmagenta'
 curve2Color = 'forestgreen'
 pointerColor = 'blue'
 curveWidth = 0.8 
@@ -106,7 +106,6 @@ Press 'q' key
     Quit the application
 """
 #=========================================================================================
-filePointers = None
 kindInterpolation = 'linear'
 
 while len(sys.argv[1:]) != 0:
