@@ -11,9 +11,9 @@ Based on:
 
 ## Captures
 
-![Capture 01](saveLineage_pngFile_01.png)  
+![Capture 01](savePyAnalyseries_pngFile_01.png)  
 
-![Capture 02](saveLineage_pngFile_02.png)  
+![Capture 02](savePyAnalyseries_pngFile_02.png)  
 
 ## Usage
 

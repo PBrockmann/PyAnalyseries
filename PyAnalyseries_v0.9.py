@@ -274,7 +274,7 @@ def setInterp():
     f_2to1 = interpolate.interp1d(coordsX2, coordsX1, kind=kindInterpolation, fill_value="extrapolate")
     second_xaxis = axsInterp.secondary_xaxis('top', functions=(f_1to2, f_2to1))
     second_xaxis.tick_params(labelrotation=30)
-    second_xaxis.set_xlabel(x2Name)
+    second_xaxis.set_xlabel(x2Name, color=curve2Color)
     plt.setp(second_xaxis.get_xticklabels(), horizontalalignment='left')
 
     x2Interp = f_2to1(x2)
@@ -490,7 +490,7 @@ def onKeyPress(event):
     elif event.key == 'p':
 
         counterFilename = 1
-        fileNameTemplate = 'saveLineage_pdfFile_{}.pdf'
+        fileNameTemplate = 'savePyAnalyseries_pdfFile_{}.pdf'
         while os.path.isfile(fileNameTemplate.format("%02d" %counterFilename)):
             counterFilename += 1
         fileName = fileNameTemplate.format("%02d" %counterFilename)
@@ -498,7 +498,7 @@ def onKeyPress(event):
         print("Info: saved pdf in file ", fileName)
 
         counterFilename = 1
-        fileNameTemplate = 'saveLineage_pngFile_{}.png'
+        fileNameTemplate = 'savePyAnalyseries_pngFile_{}.png'
         while os.path.isfile(fileNameTemplate.format("%02d" %counterFilename)):
             counterFilename += 1
         fileName = fileNameTemplate.format("%02d" %counterFilename)
@@ -509,7 +509,7 @@ def onKeyPress(event):
     elif event.key == 's':
 
         counterFilename = 1
-        fileNameTemplate = 'saveLineage_dataFile_{}.xlsx'
+        fileNameTemplate = 'savePyAnalyseries_dataFile_{}.xlsx'
         while os.path.isfile(fileNameTemplate.format("%02d" %counterFilename)):
             counterFilename += 1
         fileName = fileNameTemplate.format("%02d" %counterFilename)
@@ -670,8 +670,8 @@ points1 = axs[0].scatter(x1, y1, s=5, marker='o', color=curve1Color, picker=True
 points1.set_visible(False)
 linecursor1 = axs[0].axvline(color='k', alpha=0.25, linewidth=1)
 axs[0].grid(visible=True, which='major', color='lightgray', linestyle='dashed', linewidth=0.5)
-axs[0].set_xlabel(x1Name)
-axs[0].set_ylabel(y1Name)
+axs[0].set_xlabel(x1Name, color=curve1Color)
+axs[0].set_ylabel(y1Name, color=curve1Color)
 axs[0].patch.set_alpha(0)
 axs[0].autoscale()
 axs[0].set_label('curve1')
@@ -682,15 +682,15 @@ points2 = axs[1].scatter(x2, y2, s=5, marker='o', color=curve2Color, picker=True
 points2.set_visible(False)
 linecursor2 = axs[1].axvline(color='k', alpha=0.25, linewidth=1)
 axs[1].grid(visible=True, which='major', color='lightgray', linestyle='dashed', linewidth=0.5)
-axs[1].set_xlabel(x2Name)
-axs[1].set_ylabel(y2Name)
+axs[1].set_xlabel(x2Name, color=curve2Color)
+axs[1].set_ylabel(y2Name, color=curve2Color)
 axs[1].autoscale()
 axs[1].set_label('curve2')
 
 #=========================================================================================
 axsInterp = axs[0].twinx()
 axsInterp.sharey(axs[1])
-axsInterp.set_ylabel(y2Name)
+axsInterp.set_ylabel(y2Name, color=curve2Color)
 axsInterp.set_zorder(-10)
 axsInterp.set_visible(showInterp)
 axsInterp.set_label('curve2Interp')
