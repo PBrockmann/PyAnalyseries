@@ -86,10 +86,10 @@ xpress = None
 ypress = None
 mousepress = None
 press_origin = None
-artist_picked = None
 key_x = None
 key_shift = None
 key_control = None
+artistLabel = None
 
 #========================================================================================
 def create_Data_tab():
@@ -164,16 +164,16 @@ def updatePlots():
 
     axs[0].clear()
     axs[1].clear()
-    axsInterp = None
+    if axsInterp: fig.delaxes(axsInterp)
 
     #---------------------------------------------------------
-    curve1, = axs[0].plot(x1, y1, color=curve1Color, picker=True, pickradius=20, linewidth=curveWidth, label='curve')
-    points1 = axs[0].scatter(x1, y1, s=5, marker='o', color=curve1Color, picker=True, pickradius=20, label='points')
+    curve1, = axs[0].plot(x1, y1, color=curve1Color, picker=True, pickradius=20, linewidth=curveWidth, label='curve1')
+    points1 = axs[0].scatter(x1, y1, s=5, marker='o', color=curve1Color, picker=True, pickradius=20, label='points1')
     points1.set_visible(False)
     linecursor1 = axs[0].axvline(color='k', alpha=0.25, linewidth=1)
     axs[0].grid(visible=True, which='major', color='lightgray', linestyle='dashed', linewidth=0.5)
-    axs[0].set_xlabel(x1Name)
-    axs[0].set_ylabel(y1Name)
+    axs[0].set_xlabel(x1Name, color=curve1Color)
+    axs[0].set_ylabel(y1Name, color=curve1Color)
     axs[0].patch.set_alpha(0)
     axs[0].autoscale()
     axs[0].set_label('curve1')
@@ -181,13 +181,13 @@ def updatePlots():
     axs[0].yaxis.pickradius = 50
     
     #---------------------------------------------------------
-    curve2, = axs[1].plot(x2, y2, color=curve2Color, picker=True, pickradius=20, linewidth=curveWidth, label='curve')
-    points2 = axs[1].scatter(x2, y2, s=5, marker='o', color=curve2Color, picker=True, pickradius=20, label='points')
+    curve2, = axs[1].plot(x2, y2, color=curve2Color, picker=True, pickradius=20, linewidth=curveWidth, label='curve2')
+    points2 = axs[1].scatter(x2, y2, s=5, marker='o', color=curve2Color, picker=True, pickradius=20, label='points2')
     points2.set_visible(False)
     linecursor2 = axs[1].axvline(color='k', alpha=0.25, linewidth=1)
     axs[1].grid(visible=True, which='major', color='lightgray', linestyle='dashed', linewidth=0.5)
-    axs[1].set_xlabel(x2Name)
-    axs[1].set_ylabel(y2Name)
+    axs[1].set_xlabel(x2Name, color=curve2Color)
+    axs[1].set_ylabel(y2Name, color=curve2Color)
     axs[1].autoscale()
     axs[1].set_label('curve2')
     axs[1].xaxis.pickradius = 50
@@ -196,14 +196,14 @@ def updatePlots():
     #---------------------------------------------------------
     axsInterp = axs[0].twinx()
     axsInterp.sharey(axs[1])
-    axsInterp.set_ylabel(y2Name)
+    axsInterp.set_ylabel(y2Name, c=curve2Color)
     axsInterp.set_zorder(-10)
     axsInterp.set_visible(showInterp)
     axsInterp.set_label('curve2Interp')
 
     #---------------------------------------------------------
-    axs[0].relim()
-    axs[1].relim()
+    print('axs0', axs[0].get_xlim())
+    print('axs1', axs[1].get_xlim())
 
 #=========================================================================================
 def openData():
@@ -211,6 +211,7 @@ def openData():
     if not fileName: 
         displayStatusMessage("Data", "Cannot open file", 5000)
         return
+    print('-------------------', fileName)
     loadData(fileName)
 
 #=========================================================================================
@@ -291,8 +292,8 @@ def drawConnections():
     for i in range(len(coordsX1)):
         coordX1 = coordsX1[i]
         coordX2 = coordsX2[i]
-        vline1 = axs[0].axvline(coordX1, color=pointerColor, alpha=0.5, linestyle='--', linewidth=1, label='vline')
-        vline2 = axs[1].axvline(coordX2, color=pointerColor, alpha=0.5, linestyle='--', linewidth=1, label='vline')
+        vline1 = axs[0].axvline(coordX1, color=pointerColor, alpha=0.5, linestyle='--', linewidth=1, label='vline1')
+        vline2 = axs[1].axvline(coordX2, color=pointerColor, alpha=0.5, linestyle='--', linewidth=1, label='vline2')
         vline1List.append(vline1)
         vline2List.append(vline2)
         connect = ConnectionPatch(color=pointerColor, alpha=0.5, linewidth=1, picker=5, clip_on=True, label='connection',
@@ -302,7 +303,6 @@ def drawConnections():
         artistsList_Dict[id(connect)] = [connect, vline1, vline2]
 
     updateConnections()
-    #setInterp()
 
 #=========================================================================================
 def deleteConnections():
@@ -483,10 +483,9 @@ def on_key_release(event):
 
 #------------------------------------------------------------------
 def on_mouse_pick(event):
-    global artist_picked
+    global artistLabel
     global vline1, vline2, artistsList_Dict, vline1List, vline2List
 
-    artist_picked = event.artist
     artistLabel = event.artist.get_label()
 
     #-----------------------------------------------
@@ -506,23 +505,23 @@ def on_mouse_pick(event):
             displayInterp(showInterp)
 
     #-----------------------------------------------
-    if artistLabel == 'curve':
+    if artistLabel in ['curve1', 'curve2']:
         if key_shift:
             coordPoint = [event.mouseevent.xdata, event.mouseevent.ydata]
             if event.artist == curve1:
                 if vline1 != None:
                     vline1.set_data([coordPoint[0], coordPoint[0]], [0,1])
                 else:
-                    vline1 = axs[0].axvline(coordPoint[0], color=pointerColor, alpha=0.5, linestyle='--', linewidth=1, label='vline')
+                    vline1 = axs[0].axvline(coordPoint[0], color=pointerColor, alpha=0.5, linestyle='--', linewidth=1, label='vline1')
             elif event.artist == curve2:
                 if vline2 != None:
                     vline2.set_data([coordPoint[0], coordPoint[0]], [0,1])
                 else:
-                    vline2 = axs[1].axvline(coordPoint[0], color=pointerColor, alpha=0.5, linestyle='--', linewidth=1, label='vline')
+                    vline2 = axs[1].axvline(coordPoint[0], color=pointerColor, alpha=0.5, linestyle='--', linewidth=1, label='vline2')
             fig.canvas.draw()
 
     #-----------------------------------------------
-    elif artistLabel == 'points':
+    elif artistLabel in ['points1', 'points2']:
         if key_control:
             ind = event.ind[0]
             if event.artist == points1:
@@ -530,31 +529,39 @@ def on_mouse_pick(event):
                 if vline1 != None:
                     vline1.set_data([coordPoint[0], coordPoint[0]], [0,1])
                 else:
-                    vline1 = axs[0].axvline(coordPoint[0], color=pointerColor, linestyle='--', linewidth=1, label='vline')
+                    vline1 = axs[0].axvline(coordPoint[0], color=pointerColor, linestyle='--', linewidth=1, label='vline1')
             elif event.artist == points2:
                 coordPoint = [x2[ind], y2[ind]]
                 if vline2 != None:
                     vline2.set_data([coordPoint[0], coordPoint[0]], [0,1])
                 else:
-                    vline2 = axs[1].axvline(coordPoint[0], color=pointerColor, linestyle='--', linewidth=1, label='vline')
+                    vline2 = axs[1].axvline(coordPoint[0], color=pointerColor, linestyle='--', linewidth=1, label='vline2')
             fig.canvas.draw()
 
 #------------------------------------------------------------------
 def on_mouse_press(event):
     global cur_xlim, cur_ylim, press, xpress, ypress, mousepress, press_origin
+    global curve1Color, curve2Color
+    global curve1, curve2, curve2Interp
 
     if event.inaxes not in axs: return
 
     # Double click on curves or points with left mouse button
-    if event.button == 1 and event.dblclick and artist_picked in [curve1, curve2, points1, points2]:
+    if event.button == 1 and event.dblclick and artistLabel in ['curve1', 'curve2', 'points1', 'points2']:
         color = QColorDialog.getColor()
         if color.isValid():
-            if artist_picked in [curve1, points1]:
-                curve1.set_color(color.name())
-                points1.set_color(color.name())
-            elif artist_picked in [curve2, points2]:
-                curve2.set_color(color.name())
-                points2.set_color(color.name())
+            if artistLabel in ['curve1', 'points1']:
+                curve1Color = color.name()
+                curve1.set_color(curve1Color)
+                points1.set_color(curve1Color)
+                axs[0].set_ylabel(y1Name, c=curve1Color)
+            elif artistLabel in ['curve2', 'points2']:
+                curve2Color = color.name()
+                curve2.set_color(curve2Color)
+                curve2Interp.set_color(curve2Color)
+                points2.set_color(curve2Color)
+                axs[1].set_ylabel(y2Name, c=curve2Color)
+                axsInterp.set_ylabel(y2Name, c=curve2Color)
             fig.canvas.draw()
             fig.canvas.flush_events()
         return 
@@ -649,7 +656,7 @@ def on_mouse_scroll(event):
     artist = detect_artist(event)  # Detect the artist in the entire figure
 
     if artist is None:
-        print("No artist detected under the scroll event.")
+        #print("No artist detected under the scroll event.")
         return
 
     scale_factor = 0.9 if event.button == 'up' else 1.1
@@ -704,9 +711,9 @@ def deleteInterp():
     if curve2Interp:
         curve2Interp.remove()
         curve2Interp = None
-        x2Interp = None
         second_xaxis.remove()
         second_xaxis = None
+        x2Interp = None
 
 #=========================================================================================
 def setInterp():
@@ -727,23 +734,21 @@ def setInterp():
     f_2to1 = interpolate.interp1d(coordsX2, coordsX1, kind=kindInterpolation, fill_value="extrapolate")
     second_xaxis = axsInterp.secondary_xaxis('top', functions=(f_1to2, f_2to1))
     second_xaxis.tick_params(labelrotation=30)
-    second_xaxis.set_xlabel(x2Name)
+    second_xaxis.set_xlabel(x2Name, color=curve2Color)
     plt.setp(second_xaxis.get_xticklabels(), horizontalalignment='left')
 
     x2Interp = f_2to1(x2)
-    curve2Interp, = axsInterp.plot(x2Interp, y2, color=curve2Color, alpha=0.8, linewidth=curveWidth)
+    curve2Interp, = axsInterp.plot(x2Interp, y2, color=curve2Color, alpha=0.8, linewidth=curveWidth, label="curve2Interp")
 
 #=========================================================================================
 def displayInterp(visible):
 
     if visible:
-            if curve2Interp: 
-                axsInterp.set_visible(True)
-                curve2Interp.set_visible(True)
+            if curve2Interp: curve2Interp.set_visible(True)
+            if axsInterp: axsInterp.set_visible(True)
     else:
-            if curve2Interp: 
-                axsInterp.set_visible(False)
-                curve2Interp.set_visible(False)
+            if curve2Interp: curve2Interp.set_visible(False)
+            if axsInterp: axsInterp.set_visible(False)
     fig.canvas.draw()
 
 #========================================================================================
@@ -915,12 +920,13 @@ about_action = QAction("About", main_window)
 about_action.triggered.connect(lambda: QMessageBox.about(main_window, "About", about_text))
 about_menu.addAction(about_action)
 
+if fileData:
+    print('-------------------', fileData)
+    loadData(fileData)
+    displayStatusMessage("Main", fileData + " loaded", 5000)
+
 main_window.setStatusBar(QStatusBar())
 displayStatusMessage("Main", "Application ready", 5000)
 main_window.show()
-
-if fileData:
-    loadData(fileData)
-    displayStatusMessage("Main", fileData + " loaded", 5000)
 
 sys.exit(app.exec_())
