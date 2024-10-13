@@ -138,7 +138,10 @@ def create_Plots_tab():
     fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1, wspace=0, hspace=0.2)
     fig.set_visible(False)
 
+    #---------------------------------------------------------
     canvas = FigureCanvas(fig)
+    canvas.setFocusPolicy(Qt.ClickFocus)
+
     canvas.mpl_connect('button_press_event', on_mouse_press)
     canvas.mpl_connect('button_release_event', on_mouse_release)
     canvas.mpl_connect('scroll_event', on_mouse_scroll)
@@ -202,8 +205,8 @@ def updatePlots():
     axsInterp.set_label('curve2Interp')
 
     #---------------------------------------------------------
-    print('axs0', axs[0].get_xlim())
-    print('axs1', axs[1].get_xlim())
+    #print('axs0', axs[0].get_xlim())
+    #print('axs1', axs[1].get_xlim())
 
 #=========================================================================================
 def openData():
@@ -921,7 +924,7 @@ about_action.triggered.connect(lambda: QMessageBox.about(main_window, "About", a
 about_menu.addAction(about_action)
 
 if fileData:
-    print('-------------------', fileData)
+    #print('-------------------', fileData)
     loadData(fileData)
     displayStatusMessage("Main", fileData + " loaded", 5000)
 
