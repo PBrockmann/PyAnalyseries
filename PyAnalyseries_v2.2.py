@@ -214,7 +214,7 @@ def openData():
     if not fileName: 
         displayStatusMessage("Data", "Cannot open file", 5000)
         return
-    print('-------------------', fileName)
+    #print('-------------------', fileName)
     loadData(fileName)
 
 #=========================================================================================
