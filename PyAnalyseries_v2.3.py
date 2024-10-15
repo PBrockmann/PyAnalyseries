@@ -11,14 +11,13 @@ import numpy as np
 import pandas as pd
 
 from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QTabWidget, QWidget, QVBoxLayout,
+    QApplication, QMainWindow, QTabWidget, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QStatusBar, QSizePolicy, QTableWidget, QTableWidgetItem,
     QAction, QMessageBox, QFileDialog, QColorDialog, QDialog, QTextBrowser,
-    QPushButton
+    QPushButton, QSpacerItem, QStyle, QSizePolicy
 )
 from PyQt5.QtCore import Qt
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from PyQt5.QtGui import QColor
+from PyQt5.QtGui import QColor, QIcon
 
 import matplotlib.pyplot as plt
 from matplotlib.patches import ConnectionPatch
@@ -37,7 +36,7 @@ else:
     fileData = None
 
 #========================================================================================
-version = 'v2.2'
+version = 'v2.3'
 curve1Color = 'darkmagenta'
 curve2Color = 'forestgreen'
 pointerColor = 'blue'
@@ -78,6 +77,9 @@ coordsX1 = []
 coordsX2 = []
 second_xaxis = None
 kindInterpolation = 'linear'
+figPointers = None 
+axPointers = None 
+axGradient = None 
 
 press = None
 cur_xlim = None
@@ -108,20 +110,38 @@ def create_Data_tab():
 #========================================================================================
 def create_Pointers_tab():
     global tablePointersWidget
+    global figPointers, axPointers
 
     widget = QWidget()
-    layout = QVBoxLayout()
+    layout = QHBoxLayout()
 
+    #---------------------------------------------------------
+    column_width = 200
     tablePointersWidget = QTableWidget()
-    tablePointersWidget.setEditTriggers(QTableWidget.NoEditTriggers)
     tablePointersWidget.setRowCount(0)
     tablePointersWidget.setColumnCount(2)
+    tablePointersWidget.setColumnWidth(0, column_width)
+    tablePointersWidget.setColumnWidth(1, column_width)
+    tablePointersWidget.verticalHeader().setFixedWidth(50)
     tablePointersWidget.setHorizontalHeaderLabels(["Coordinates X1", "Coordinates X2"])
     tablePointersWidget.horizontalHeader().setDefaultAlignment(Qt.AlignRight)
-    tablePointersWidget.setColumnWidth(0, 200)
-    tablePointersWidget.setColumnWidth(1, 200)
+    tablePointersWidget.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+    tablePointersWidget.setEditTriggers(QTableWidget.NoEditTriggers)
 
+    total_width = (column_width* 2) + tablePointersWidget.verticalHeader().width() + tablePointersWidget.frameWidth() * 2
+    tablePointersWidget.setFixedWidth(total_width)
+
+    #---------------------------------------------------------
+    figPointers, axPointers = plt.subplots(1, 1)
+    figPointers.subplots_adjust(left=0.15, right=0.85, top=0.85, bottom=0.15)
+    figPointers.set_visible(False)
+
+    figPointers.canvas.setFocusPolicy(Qt.ClickFocus)
+
+    #---------------------------------------------------------
     layout.addWidget(tablePointersWidget)
+    layout.addWidget(figPointers.canvas)
+
     widget.setLayout(layout)
     return widget
 
@@ -129,7 +149,6 @@ def create_Pointers_tab():
 def create_Plots_tab():
     global fig, axs 
 
-    """Crée un onglet avec un tracé Matplotlib."""
     widget = QWidget()
     layout = QVBoxLayout()
 
@@ -138,20 +157,18 @@ def create_Plots_tab():
     fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1, wspace=0, hspace=0.2)
     fig.set_visible(False)
 
-    #---------------------------------------------------------
-    canvas = FigureCanvas(fig)
-    canvas.setFocusPolicy(Qt.ClickFocus)
+    fig.canvas.setFocusPolicy(Qt.ClickFocus)
 
-    canvas.mpl_connect('button_press_event', on_mouse_press)
-    canvas.mpl_connect('button_release_event', on_mouse_release)
-    canvas.mpl_connect('scroll_event', on_mouse_scroll)
-    canvas.mpl_connect('motion_notify_event', on_mouse_motion)
-    canvas.mpl_connect('pick_event', on_mouse_pick)
-    canvas.mpl_connect('key_press_event', on_key_press)
-    canvas.mpl_connect('key_release_event', on_key_release)
+    fig.canvas.mpl_connect('button_press_event', on_mouse_press)
+    fig.canvas.mpl_connect('button_release_event', on_mouse_release)
+    fig.canvas.mpl_connect('scroll_event', on_mouse_scroll)
+    fig.canvas.mpl_connect('motion_notify_event', on_mouse_motion)
+    fig.canvas.mpl_connect('pick_event', on_mouse_pick)
+    fig.canvas.mpl_connect('key_press_event', on_key_press)
+    fig.canvas.mpl_connect('key_release_event', on_key_release)
 
     #---------------------------------------------------------
-    layout.addWidget(canvas)
+    layout.addWidget(fig.canvas)
 
     widget.setLayout(layout)
     return widget
@@ -240,6 +257,7 @@ def loadData(fileName):
     tableDataWidget.setRowCount(dataframe.shape[0])
     tableDataWidget.setColumnCount(dataframe.shape[1])
     tableDataWidget.setHorizontalHeaderLabels(dataframe.columns)
+    tableDataWidget.verticalHeader().setFixedWidth(50)
     tableDataWidget.resizeColumnsToContents()
 
     for row in range(dataframe.shape[0]):
@@ -247,7 +265,7 @@ def loadData(fileName):
             value = str(dataframe.iat[row, col])
             tableDataWidget.setItem(row, col, QTableWidgetItem(value))
             item = tableDataWidget.item(row, col)
-            if col % 2 == 0:
+            if row % 2 == 0:
                 item.setBackground(QColor(250, 250, 250))
 
     updatePlots()
@@ -325,6 +343,9 @@ def deleteConnections():
 def updatePointers():
     global coordsX1, coordsX2
     global tablePointersWidget
+    global figPointers, axPointers, axGradient
+
+    #if not coordsX1: return
 
     coordsX1 = sorted([float(line.get_xdata()[0]) for line in vline1List])
     coordsX2 = sorted([float(line.get_xdata()[0]) for line in vline2List])
@@ -336,12 +357,39 @@ def updatePointers():
         tablePointersWidget.setItem(row, 0, QTableWidgetItem(f'{coordsX1[row]:.4f}'))
         tablePointersWidget.setItem(row, 1, QTableWidgetItem(f'{coordsX2[row]:.4f}'))
         item1 = tablePointersWidget.item(row, 0)
-        item2 = tablePointersWidget.item(row, 1)
         item1.setTextAlignment(Qt.AlignRight)
+        item2 = tablePointersWidget.item(row, 1)
         item2.setTextAlignment(Qt.AlignRight)
         if row % 2 == 0: 
             item1.setBackground(QColor(250, 250, 250))
             item2.setBackground(QColor(250, 250, 250))
+
+    if len(coordsX1) >= 2:
+        axPointers.clear()
+        if axGradient: figPointers.delaxes(axGradient)
+        figPointers.set_visible(True)
+
+        axPointers.plot(coordsX1, coordsX2, color='steelblue', linewidth=1)
+        axPointers.scatter(coordsX1, coordsX2, s=10, marker='o', color='steelblue')
+        axPointers.grid(visible=True, which='major', color='lightgray', linestyle='dashed', linewidth=1)
+        axPointers.set_xlabel(x1Name, color=curve1Color)
+        axPointers.set_ylabel(x2Name, color=curve2Color)
+        axPointers.autoscale()
+
+        slopes = np.gradient(coordsX2, coordsX1)
+        axGradient = axPointers.twinx()
+        axGradient.set_ylabel('Gradient', color='darkorange')
+        axGradient.step(coordsX1, slopes, color='darkorange', lw=1)
+        axGradient.autoscale(axis='y', tight=False)
+
+        figPointers.canvas.draw()
+    else:
+        axPointers.clear()
+        if axGradient: 
+            figPointers.delaxes(axGradient)
+            axGradient = None
+        figPointers.set_visible(False)
+        figPointers.canvas.draw()
 
     displayStatusMessage("Plots", "Pointers updated", 5000)
 
@@ -783,51 +831,51 @@ def savePlots():
 
 #========================================================================================
 def detach_tab(tab_widget, index):
-    """Détache l'onglet et l'affiche dans une nouvelle fenêtre."""
     tab_content = tab_widget.widget(index)
     tab_name = tab_widget.tabText(index)
 
-    # Retirer l'onglet du QTabWidget
     tab_widget.removeTab(index)
 
-    # Créer une nouvelle fenêtre pour l'onglet détaché
     detached_window = QMainWindow()
     detached_window.setWindowTitle(tab_name)
-    detached_window.setGeometry(200, 200, 1100, 700)  # Taille de la fenêtre détachée
+    detached_window.setGeometry(200, 200, 1200, 800)
 
-    # Créer un layout pour le contenu détaché
-    cloned_content = QWidget()
-    cloned_layout = QVBoxLayout()
+    detached_content = QWidget()
+    if type(tab_content.layout()) == QVBoxLayout:
+        detached_layout = QVBoxLayout()
+    elif type(tab_content.layout()) == QHBoxLayout:
+        detached_layout = QHBoxLayout()
 
-    # Cloner le contenu de l'onglet
+    # Collect widgets to detach
+    widgets_to_detach = []
+
     for i in range(tab_content.layout().count()):
         item = tab_content.layout().itemAt(i)
         if item is not None and item.widget() is not None:
-            # Clone le widget
-            cloned_layout.addWidget(item.widget().clone() if hasattr(item.widget(), 'clone') else item.widget())
+            widget = item.widget()
+            widgets_to_detach.append(widget)  # Collect widget instead of adding directly
 
-    cloned_content.setLayout(cloned_layout)
+    # Now add collected widgets to the new layout
+    for widget in widgets_to_detach:
+        detached_layout.addWidget(widget)  # Add the widget to the new layout
 
-    # Créer une barre d'état propre à la fenêtre détachée
+    detached_content.setLayout(detached_layout)
+
     detached_window.setStatusBar(QStatusBar())
-    detached_window.statusBar().showMessage(f"{tab_name} - Ready", 3000)  # Message par défaut
+    detached_window.statusBar().showMessage(f"{tab_name} - Ready", 3000)
 
-    # Gérer la fermeture de la fenêtre détachée
     def on_close_event(event):
-        tab_widget.addTab(cloned_content, tab_name)  # Rattacher le contenu
-        tab_widget.setCurrentWidget(cloned_content)  # Sélectionner l'onglet réattaché
+        tab_widget.addTab(detached_content, tab_name)
+        tab_widget.setCurrentWidget(detached_content)
         event.accept()
         del detached_windows[tab_name]
 
     detached_window.closeEvent = on_close_event
 
-    # Définir le widget central de la fenêtre détachée
-    detached_window.setCentralWidget(cloned_content)
+    detached_window.setCentralWidget(detached_content)
 
-    # Afficher la nouvelle fenêtre
     detached_window.show()
 
-    # Ajouter la fenêtre détachée à la liste
     detached_windows[tab_name] = detached_window
 
 #========================================================================================
@@ -838,24 +886,28 @@ def activate_tab_by_name(tab_widget, tab_name):
             return
 
 #========================================================================================
-def show_help():
-    with open("help.html", "r") as file:
+def show_dialog(title, fileHTML, width, height):
+    with open(fileHTML, "r") as file:
         help_text = file.read()
     
     dialog = QDialog()
-    dialog.setWindowTitle("Help")
-    dialog.setFixedSize(800, 800)
+    dialog.setWindowTitle(title)
+    dialog.setFixedSize(width, height)
     
-    layout = QVBoxLayout()
-    dialog.setLayout(layout)
-
+    main_layout = QVBoxLayout()
+    dialog.setLayout(main_layout)
     text_browser = QTextBrowser()
     text_browser.setHtml(help_text)
-    layout.addWidget(text_browser)
+    main_layout.addWidget(text_browser)
     
-    close_button = QPushButton("Close")
-    close_button.clicked.connect(dialog.accept)
-    layout.addWidget(close_button)
+    button_layout = QHBoxLayout()
+    button_layout.addItem(QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum))
+    ok_button = QPushButton("OK")
+    ok_button.clicked.connect(dialog.accept)
+    icon = QApplication.style().standardIcon(QStyle.SP_DialogApplyButton)
+    ok_button.setIcon(icon)
+    button_layout.addWidget(ok_button)
+    main_layout.addLayout(button_layout)
 
     dialog.exec_()
 
@@ -869,6 +921,10 @@ def displayStatusMessage(target, message, duration=0):
 
 #========================================================================================
 app = QApplication(sys.argv)
+
+icon = QIcon('PyAnalyseries_icon.png')
+app.setWindowIcon(icon)
+
 main_window = QMainWindow()
 main_window.setGeometry(200, 200, 1200, 800)
 
@@ -909,18 +965,11 @@ file_menu.addSeparator()
 file_menu.addAction(exit_action)
 
 help_action = QAction("Help", main_window)
-help_action.triggered.connect(show_help)
+help_action.triggered.connect(lambda: show_dialog('Help', 'help.html', 800, 700))
 help_menu.addAction(help_action)
 
-about_text = '''
-Created by LSCE - <i>October 2024</i>
-<ul>
-<li>Patrick Brockmann : Software design and developments
-<li>Francisco Hevia-Cruz : Documentation and testing
-</ul>
-'''
 about_action = QAction("About", main_window)
-about_action.triggered.connect(lambda: QMessageBox.about(main_window, "About", about_text))
+about_action.triggered.connect(lambda: show_dialog('About', 'about.html', 800, 600))
 about_menu.addAction(about_action)
 
 if fileData:
