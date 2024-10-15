@@ -376,10 +376,11 @@ def updatePointers():
         axPointers.set_ylabel(x2Name, color=curve2Color)
         axPointers.autoscale()
 
-        slopes = np.gradient(coordsX2, coordsX1)
+        f_1to2 = interpolate.interp1d(coordsX1, coordsX2, kind=kindInterpolation, fill_value="extrapolate")
+        gradient = np.gradient(f_1to2(x1), x1)
         axGradient = axPointers.twinx()
         axGradient.set_ylabel('Gradient', color='darkorange')
-        axGradient.step(coordsX1, slopes, color='darkorange', lw=1)
+        axGradient.plot(x1, gradient, color='darkorange', lw=1)
         axGradient.autoscale(axis='y', tight=False)
 
         figPointers.canvas.draw()
