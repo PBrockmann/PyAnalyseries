@@ -36,7 +36,7 @@ else:
     fileData = None
 
 #========================================================================================
-version = 'v2.3'
+version = 'v2.4'
 curve1Color = 'darkmagenta'
 curve2Color = 'forestgreen'
 pointerColor = 'blue'
@@ -377,7 +377,7 @@ def updatePointers():
         axPointers.autoscale()
 
         f_1to2 = interpolate.interp1d(coordsX1, coordsX2, kind=kindInterpolation, fill_value="extrapolate")
-        gradient = np.gradient(f_1to2(x1), x1)
+        gradient = np.gradient(f_1to2(x1), x1).astype(np.float32)       # to avoid unnecessary precision
         axGradient = axPointers.twinx()
         axGradient.set_ylabel('Gradient', color='darkorange')
         axGradient.plot(x1, gradient, color='darkorange', lw=1)
@@ -841,42 +841,22 @@ def detach_tab(tab_widget, index):
     detached_window.setWindowTitle(tab_name)
     detached_window.setGeometry(200, 200, 1200, 800)
 
-    detached_content = QWidget()
-    if type(tab_content.layout()) == QVBoxLayout:
-        detached_layout = QVBoxLayout()
-    elif type(tab_content.layout()) == QHBoxLayout:
-        detached_layout = QHBoxLayout()
-
-    # Collect widgets to detach
-    widgets_to_detach = []
-
-    for i in range(tab_content.layout().count()):
-        item = tab_content.layout().itemAt(i)
-        if item is not None and item.widget() is not None:
-            widget = item.widget()
-            widgets_to_detach.append(widget)  # Collect widget instead of adding directly
-
-    # Now add collected widgets to the new layout
-    for widget in widgets_to_detach:
-        detached_layout.addWidget(widget)  # Add the widget to the new layout
-
-    detached_content.setLayout(detached_layout)
-
-    detached_window.setStatusBar(QStatusBar())
+    detached_window.setCentralWidget(tab_content)
     detached_window.statusBar().showMessage(f"{tab_name} - Ready", 3000)
 
+    tab_content.show()
+
     def on_close_event(event):
-        tab_widget.addTab(detached_content, tab_name)
-        tab_widget.setCurrentWidget(detached_content)
+        reattached_content = detached_window.takeCentralWidget()
+        reattached_content.setParent(tab_widget)
+        tab_widget.addTab(reattached_content, tab_name)
+        tab_widget.setCurrentWidget(reattached_content)
         event.accept()
         del detached_windows[tab_name]
 
     detached_window.closeEvent = on_close_event
 
-    detached_window.setCentralWidget(detached_content)
-
     detached_window.show()
-
     detached_windows[tab_name] = detached_window
 
 #========================================================================================
