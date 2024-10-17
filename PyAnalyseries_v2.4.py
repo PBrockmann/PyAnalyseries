@@ -36,7 +36,7 @@ else:
     fileData = None
 
 #========================================================================================
-version = 'v2.41'
+version = 'v2.42'
 curve1Color = 'darkmagenta'
 curve2Color = 'forestgreen'
 pointerColor = 'blue'
@@ -775,7 +775,7 @@ def deleteInterp():
         curve2Interp = None
         second_xaxis.remove()
         second_xaxis = None
-        x2Interp = None
+        x2Interp = [] 
 
 #=========================================================================================
 def setInterp():
@@ -815,11 +815,15 @@ def displayInterp(visible):
 
 #========================================================================================
 def saveData():
+
     fileName, _ = QFileDialog.getSaveFileName(main_window, "Save Data", "", "Excel files (*.xlsx)")
     if fileName:
         with pd.ExcelWriter(fileName) as writer:
-            df = pd.DataFrame({x1Name: x1, y1Name: y1, x2Name: x2, y2Name: y2,
+            if len(x2Interp) > 0: 
+                df = pd.DataFrame({x1Name: x1, y1Name: y1, x2Name: x2, y2Name: y2,
                                y2Name + ' interpolated (' + kindInterpolation + ') on ' + x1Name: x2Interp})
+            else:
+                df = pd.DataFrame({x1Name: x1, y1Name: y1, x2Name: x2, y2Name: y2})
             df.to_excel(writer, sheet_name='Data', index=False, float_format="%.8f")
             worksheet = writer.sheets['Data']
             for i, col in enumerate(df.columns, 1): 
