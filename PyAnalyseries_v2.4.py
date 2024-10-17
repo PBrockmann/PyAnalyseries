@@ -819,9 +819,9 @@ def saveData():
     fileName, _ = QFileDialog.getSaveFileName(main_window, "Save Data", "", "Excel files (*.xlsx)")
     if fileName:
         with pd.ExcelWriter(fileName) as writer:
-            if len(x2Interp) > 0: 
+            if len(x2Interp) > 0:
                 df = pd.DataFrame({x1Name: x1, y1Name: y1, x2Name: x2, y2Name: y2,
-                               y2Name + ' interpolated (' + kindInterpolation + ') on ' + x1Name: x2Interp})
+                        y2Name + ' interpolated (' + kindInterpolation + ') on ' + x1Name: x2Interp})
             else:
                 df = pd.DataFrame({x1Name: x1, y1Name: y1, x2Name: x2, y2Name: y2})
             df.to_excel(writer, sheet_name='Data', index=False, float_format="%.8f")
