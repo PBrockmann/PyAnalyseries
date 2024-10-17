@@ -36,7 +36,7 @@ else:
     fileData = None
 
 #========================================================================================
-version = 'v2.4'
+version = 'v2.41'
 curve1Color = 'darkmagenta'
 curve2Color = 'forestgreen'
 pointerColor = 'blue'
@@ -241,17 +241,22 @@ def loadData(fileName):
     global tableDataWidget
     global showInterp 
 
-    deleteConnections()
-    updatePointers()
-    deleteInterp()
-    showInterp = False
+    try:
+        dataframe = pd.read_excel(fileName)
+        x1Name, y1Name, x2Name, y2Name = dataframe.columns[0:4]    # First 4 columns
+    except:
+        displayStatusMessage("Main", "Cannot open file", 5000)
+        return
 
-    dataframe = pd.read_excel(fileName)
-    x1Name, y1Name, x2Name, y2Name = dataframe.columns[0:4]    # First 4 columns
     x1 = dataframe[x1Name].to_numpy()
     y1 = dataframe[y1Name].to_numpy()
     x2 = dataframe[x2Name].to_numpy()
     y2 = dataframe[y2Name].to_numpy()
+
+    deleteConnections()
+    updatePointers()
+    deleteInterp()
+    showInterp = False
 
     tableDataWidget.clearContents()
     tableDataWidget.setRowCount(dataframe.shape[0])
@@ -489,7 +494,7 @@ def on_key_press(event):
             coordsX2_cur = sorted([float(line.get_xdata()[0]) for line in vline2List])
             # Check positions
             if np.searchsorted(coordsX1_cur, coordX1) != np.searchsorted(coordsX2_cur, coordX2):
-                print("Error: Connection not possible because it would cross existing connections")
+                #print("Error: Connection not possible because it would cross existing connections")
                 displayStatusMessage("Plots", "Error: Connection not possible because it would cross existing connections", 5000)
                 return
 
@@ -853,10 +858,8 @@ def detach_tab(tab_widget, index):
 
     def on_close_event(event):
         reattached_content = detached_window.takeCentralWidget()
-        reattached_content.setParent(tab_widget)
         tab_widget.addTab(reattached_content, tab_name)
         tab_widget.setCurrentWidget(reattached_content)
-        event.accept()
         del detached_windows[tab_name]
 
     detached_window.closeEvent = on_close_event
