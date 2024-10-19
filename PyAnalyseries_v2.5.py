@@ -328,7 +328,7 @@ def updatePlots():
     #---------------------------------------------------------
     axsInterp = axs[0].twinx()
     axsInterp.sharey(axs[1])
-    axsInterp.set_ylabel(y2Name, c=serie2Color)
+    axsInterp.set_ylabel(y2Name, color=serie2Color)
     axsInterp.set_zorder(-10)
     axsInterp.set_visible(showInterp)
     axsInterp.set_label('curve2Interp')
@@ -368,12 +368,13 @@ def getVariables():
 def changeVariables():
 
     deleteInterp()
-    showInterp = False
     deleteConnections()
 
     getVariables()
     updatePlots()
     drawConnections()
+    setInterp()
+    displayInterp(showInterp)
     updateAxes()
 
 #=========================================================================================
@@ -975,9 +976,10 @@ def changeColor(serieNumber):
             curve2.set_color(serie2Color)
             points2.set_color(serie2Color)
             if curve2Interp: curve2Interp.set_color(serie2Color)
-            axs[1].set_xlabel(x2Name, c=serie2Color)
-            axs[1].set_ylabel(y2Name, c=serie2Color)
-            axsInterp.set_ylabel(y2Name, c=serie2Color)
+            axs[1].set_xlabel(x2Name, color=serie2Color)
+            axs[1].set_ylabel(y2Name, color=serie2Color)
+            axsInterp.set_ylabel(y2Name, color=serie2Color)
+            second_xaxis.set_xlabel(x2Name, color=serie2Color)
             axPointers.set_ylabel(x2Name, color=serie2Color)
         figPointers.canvas.draw()
         fig.canvas.draw()
