@@ -1092,6 +1092,7 @@ def changeInterpMode(button):
 
     defineInterpFunction()
     changeVariables()
+    updatePointers()
 
 #=========================================================================================
 def defineInterpFunction():
