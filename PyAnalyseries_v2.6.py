@@ -1260,6 +1260,19 @@ def displayStatusMessage(target, message, duration=0):
         main_window.statusBar().showMessage(message, duration)
 
 #========================================================================================
+def exit_confirm():
+    reply = QMessageBox.question(
+        main_window, 
+        "Exit Confirmation",
+        "Are you sure you want to exit the application?",
+        QMessageBox.Yes | QMessageBox.No,
+        QMessageBox.No
+    )
+    
+    if reply == QMessageBox.Yes:
+        app.quit()
+
+#========================================================================================
 app = QApplication(sys.argv)
 
 icon = QIcon('PyAnalyseries_icon.png')
@@ -1298,7 +1311,7 @@ exit_action.setShortcut('Q')
 openData_action.triggered.connect(openData)
 saveData_action.triggered.connect(saveData)
 savePlots_action.triggered.connect(savePlots)
-exit_action.triggered.connect(app.quit)
+exit_action.triggered.connect(exit_confirm)
 file_menu.addAction(openData_action)
 file_menu.addSeparator()
 file_menu.addAction(saveData_action)
