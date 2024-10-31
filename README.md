@@ -1,4 +1,4 @@
-## PyAnalyseries
+## PyAnalySeries
 
 Python version for Analyseries
 
@@ -15,20 +15,20 @@ Based on:
 #### Installation
 
 ##### Get the application
- * `git clone https://github.com/PBrockmann/PyAnalyseries`
- * `cd PyAnalyseries`
+ * `git clone https://github.com/PBrockmann/PyAnalySeries`
+ * `cd PyAnalySeries`
 
-##### Create a python environment to use PyAnalyseries 
+##### Create a python environment to use PyAnalySeries 
 
- * `conda create --name env_PyAnalyseries`
+ * `conda create --name env_PyAnalySeries`
  * `conda env list`
- * `conda activate env_PyAnalyseries`
+ * `conda activate env_PyAnalySeries`
  * `conda install python`
  * `pip install -r requirements.txt`
 
 ##### Test
- * `python PyAnalyseries_v2.4.py`
- * `python PyAnalyseries_v2.4.py testFile.xlsx`
+ * `python PyAnalySeries_v2.4.py`
+ * `python PyAnalySeries_v2.4.py testFile.xlsx`
 
 
 #### Captures

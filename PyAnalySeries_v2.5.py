@@ -1162,7 +1162,7 @@ def displayStatusMessage(target, message, duration=0):
 #========================================================================================
 app = QApplication(sys.argv)
 
-icon = QIcon('PyAnalyseries_icon.png')
+icon = QIcon('PyAnalySeries_icon.png')
 app.setWindowIcon(icon)
 
 main_window = QMainWindow()

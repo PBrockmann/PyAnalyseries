@@ -37,7 +37,7 @@ curveWidth = 0.8
 #=========================================================================================
 usage = f"""
 ####################################################################################################################
-Usage:  PyAnalyseries_{version}.py [-h]
+Usage:  PyAnalySeries_{version}.py [-h]
         [-k kindInterpolation]
         fileXLSX
 
@@ -48,7 +48,7 @@ Options:
                 Interpolation kind 'linear' or 'quadratic' (default 'linear')
 
 Examples:
-        PyAnalyseries_{version}.py testFile.xlsx
+        PyAnalySeries_{version}.py testFile.xlsx
 """
 
 #=========================================================================================
@@ -464,7 +464,7 @@ def on_key_press(event):
     elif event.key == 'p':
 
         counterFilename = 1
-        fileNameTemplate = 'savePyAnalyseries_pdfFile_{}.pdf'
+        fileNameTemplate = 'savePyAnalySeries_pdfFile_{}.pdf'
         while os.path.isfile(fileNameTemplate.format("%02d" %counterFilename)):
             counterFilename += 1
         fileName = fileNameTemplate.format("%02d" %counterFilename)
@@ -472,7 +472,7 @@ def on_key_press(event):
         print("Info: saved pdf in file ", fileName)
 
         counterFilename = 1
-        fileNameTemplate = 'savePyAnalyseries_pngFile_{}.png'
+        fileNameTemplate = 'savePyAnalySeries_pngFile_{}.png'
         while os.path.isfile(fileNameTemplate.format("%02d" %counterFilename)):
             counterFilename += 1
         fileName = fileNameTemplate.format("%02d" %counterFilename)
@@ -483,7 +483,7 @@ def on_key_press(event):
     elif event.key == 's':
 
         counterFilename = 1
-        fileNameTemplate = 'savePyAnalyseries_dataFile_{}.xlsx'
+        fileNameTemplate = 'savePyAnalySeries_dataFile_{}.xlsx'
         while os.path.isfile(fileNameTemplate.format("%02d" %counterFilename)):
             counterFilename += 1
         fileName = fileNameTemplate.format("%02d" %counterFilename)
@@ -689,7 +689,7 @@ def on_mouse_scroll(event):
 loadData(fileData)
 
 #=========================================================================================
-fig, axs = plt.subplots(2, 1, figsize=(10,8), num='PyAnalyseries ' + version)
+fig, axs = plt.subplots(2, 1, figsize=(10,8), num='PyAnalySeries ' + version)
 
 #=========================================================================================
 curve1, = axs[0].plot(x1, y1, color=curve1Color, picker=True, pickradius=20, linewidth=curveWidth, label='curve') 
