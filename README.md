@@ -27,8 +27,8 @@ Based on:
  * `pip install -r requirements.txt`
 
 ##### Test
- * `python PyAnalySeries_v2.4.py`
- * `python PyAnalySeries_v2.4.py testFile.xlsx`
+ * `python PyAnalySeries_v2.6.py`
+ * `python PyAnalySeries_v2.6.py testFile_v2.6.xlsx`
 
 
 #### Captures
