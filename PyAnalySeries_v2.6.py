@@ -1095,6 +1095,22 @@ def changeInterpMode(button):
     updatePointers()
 
 #=========================================================================================
+def safe_PchipInterpolator(X1Coords, X2Coords):
+    f_pchip = interpolate.PchipInterpolator(X1Coords, X2Coords, extrapolate=False)
+
+    def extrapolated_func(x):
+        if x < X1Coords[0]:
+            slope = (X2Coords[1] - X2Coords[0]) / (X1Coords[1] - X1Coords[0])
+            return X2Coords[0] + slope * (x - X1Coords[0])
+        elif x > X1Coords[-1]:
+            slope = (X2Coords[-1] - X2Coords[-2]) / (X1Coords[-1] - X1Coords[-2])
+            return X2Coords[-1] + slope * (x - X1Coords[-1])
+        else:
+            return f_pchip(x)
+
+    return np.vectorize(extrapolated_func, otypes=[float])        
+
+#=========================================================================================
 def defineInterpFunction():
     global f_1to2, f_2to1
 
@@ -1102,8 +1118,8 @@ def defineInterpFunction():
         f_1to2 = interpolate.interp1d(coordsX1, coordsX2, kind='linear', fill_value='extrapolate')
         f_2to1 = interpolate.interp1d(coordsX2, coordsX1, kind='linear', fill_value='extrapolate')
     elif interpMode == 'PCHIP':
-        f_1to2 = interpolate.PchipInterpolator(coordsX1, coordsX2, extrapolate=True)
-        f_2to1 = interpolate.PchipInterpolator(coordsX2, coordsX1, extrapolate=True)
+        f_1to2 = safe_PchipInterpolator(coordsX1, coordsX2)
+        f_2to1 = safe_PchipInterpolator(coordsX2, coordsX1)
 
 #=========================================================================================
 def setInterp():
